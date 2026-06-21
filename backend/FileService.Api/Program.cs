@@ -1,4 +1,10 @@
 
+using FileService.Api.Data;
+using FileService.Api.Repository;
+using FileManagementService = FileService.Api.Services.FileService;   
+using FileService.Api.Services;
+using Microsoft.EntityFrameworkCore;
+
 namespace FileService.Api
 {
     public class Program
@@ -7,22 +13,21 @@ namespace FileService.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            builder.Services.AddDbContext<ApplicationDbContext>(
+                options =>
+                    options.UseSqlServer(
+                        builder.Configuration
+                            .GetConnectionString("Default")));
+
+            builder.Services.AddScoped<IFileRepository, FileRepository>();
+
+            builder.Services.AddScoped<IFileService, FileManagementService>();
 
             builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            builder.Services.AddOpenApi();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.MapOpenApi();
-            }
-
-            app.UseAuthorization();
-
+            app.UseStaticFiles();
 
             app.MapControllers();
 
