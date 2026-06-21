@@ -1,0 +1,31 @@
+{
+    "Routes": [
+        {
+            "UpstreamPathTemplate": "/files",
+            "UpstreamHttpMethod": [ "POST" ],
+            "DownstreamPathTemplate": "/files",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 7001
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/files/{everything}",
+            "UpstreamHttpMethod": [ "GET", "DELETE" ],
+            "DownstreamPathTemplate": "/files/{everything}",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 7001
+                }
+            ]
+        }
+    ],
+    "GlobalConfiguration": {
+        "BaseUrl": "http://localhost:5000"
+    }
+}
