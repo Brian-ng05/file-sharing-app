@@ -9,7 +9,6 @@ const HistoryPage: React.FC = () => {
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    // Read local history on mount
     setHistoryList(historyService.getHistory());
   }, []);
 
@@ -39,7 +38,6 @@ const HistoryPage: React.FC = () => {
     }
   };
 
-  // Helper formatting size
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return "0 B";
     const k = 1024;
@@ -48,7 +46,6 @@ const HistoryPage: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
-  // Helper formatting expiry
   const formatExpiry = (expiresAt?: string): string => {
     if (!expiresAt) return "Never";
     const diff = new Date(expiresAt).getTime() - Date.now();
@@ -65,30 +62,52 @@ const HistoryPage: React.FC = () => {
     return `${mins} mins left`;
   };
 
+  // Helper determining extension class for styling badge backgrounds
+  const getFileBadgeClass = (name: string): string => {
+    const ext = name.split(".").pop()?.toLowerCase() || "";
+    if (ext === "pdf") return "pdf";
+    if (ext === "svg") return "svg";
+    if (ext === "eps") return "eps";
+    if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "img";
+    if (["zip", "rar", "tar", "gz", "7z"].includes(ext)) return "zip";
+    if (["doc", "docx", "xls", "xlsx", "txt"].includes(ext)) return "doc";
+    return "oth";
+  };
+
+  // Helper converting extension to label (e.g. PDF, SVG, EPS)
+  const getFileBadgeLabel = (name: string): string => {
+    const ext = name.split(".").pop()?.toLowerCase() || "file";
+    return ext.slice(0, 3).toUpperCase();
+  };
+
   return (
-    <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <div style={{ width: "100%", maxWidth: "920px", display: "flex", flexDirection: "column" }}>
       {toastMsg && <div className="toast">{toastMsg}</div>}
       
-      <h1 style={{ fontSize: "36px", marginBottom: "8px" }}>Upload History</h1>
-      <p style={{ color: "var(--text)", marginBottom: "32px" }}>
-        List of files you've uploaded from this browser.
-      </p>
+      <div className="dashboard-title-group" style={{ textAlign: "left" }}>
+        <h1 className="dashboard-title">Upload History</h1>
+        <p className="dashboard-subtitle">View and manage files you have shared with your team</p>
+      </div>
 
       {historyList.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "48px 32px" }}>
+        <div className="card" style={{ textAlign: "center", padding: "48px 32px", marginTop: "24px" }}>
           <div style={{ fontSize: "48px", marginBottom: "16px" }}>📁</div>
-          <h3>No uploads found</h3>
+          <h3 style={{ color: "#1e1b4b", margin: "0 0 8px" }}>No uploads found</h3>
           <p style={{ color: "var(--text)", marginBottom: "24px", fontSize: "14px" }}>
             You haven't uploaded any files yet, or they have all expired.
           </p>
-          <Link to="/" className="btn btn-primary">
+          <Link 
+            to="/" 
+            className="btn btn-primary" 
+            style={{ background: "#1e0094", borderRadius: "10px", padding: "10px 24px" }}
+          >
             Upload a File
           </Link>
         </div>
       ) : (
-        <div className="history-container">
+        <div className="history-container" style={{ marginTop: "24px", borderRadius: "20px" }}>
           <div className="history-header">
-            <h3 className="history-title">My Shared Files</h3>
+            <h3 className="history-title" style={{ color: "#1e1b4b" }}>My Shared Files</h3>
             <span className="mock-badge">{historyList.length} files</span>
           </div>
           
@@ -107,15 +126,30 @@ const HistoryPage: React.FC = () => {
                 {historyList.map((file) => (
                   <tr key={file.code}>
                     <td>
-                      <div className="file-name-cell" title={file.originalFileName}>
-                        {file.originalFileName}
-                      </div>
-                      <div style={{ fontSize: "11px", color: "var(--text)", marginTop: "2px" }}>
-                        Code: <code>{file.code}</code>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        {/* Extension Logo Badge matching Upload Dashboard */}
+                        <div 
+                          className={`file-badge ${getFileBadgeClass(file.originalFileName)}`}
+                          style={{ width: "32px", height: "38px", fontSize: "8px" }}
+                        >
+                          {getFileBadgeLabel(file.originalFileName)}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div 
+                            className="file-name-cell" 
+                            title={file.originalFileName}
+                            style={{ color: "#1e1b4b", fontSize: "14px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                          >
+                            {file.originalFileName}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "var(--text)", marginTop: "2px" }}>
+                            Code: <code>{file.code}</code>
+                          </div>
+                        </div>
                       </div>
                     </td>
-                    <td>{formatBytes(file.sizeBytes)}</td>
-                    <td>
+                    <td style={{ color: "var(--text-h)", whiteSpace: "nowrap" }}>{formatBytes(file.sizeBytes)}</td>
+                    <td style={{ color: "var(--text-h)", whiteSpace: "nowrap" }}>
                       {file.maxDownloads 
                         ? `${file.downloadCount} / ${file.maxDownloads}`
                         : `${file.downloadCount} / ∞`
@@ -131,6 +165,7 @@ const HistoryPage: React.FC = () => {
                         <button 
                           type="button" 
                           className="btn btn-secondary btn-sm" 
+                          style={{ borderRadius: "8px", padding: "6px 12px" }}
                           onClick={() => copyLink(file.code)}
                           title="Copy Shareable Link"
                         >
@@ -139,6 +174,7 @@ const HistoryPage: React.FC = () => {
                         <Link 
                           to={`/f/${file.code}`} 
                           className="btn btn-primary btn-sm"
+                          style={{ background: "#1e0094", borderRadius: "8px", padding: "6px 12px" }}
                           title="Preview File"
                         >
                           Preview
@@ -146,6 +182,7 @@ const HistoryPage: React.FC = () => {
                         <button 
                           type="button" 
                           className="btn btn-danger btn-sm" 
+                          style={{ borderRadius: "8px", padding: "6px 12px" }}
                           onClick={() => handleDelete(file.code)}
                           title="Delete File"
                         >
