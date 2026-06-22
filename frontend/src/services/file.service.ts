@@ -10,16 +10,27 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10,485,760 bytes
 
 export const fileService = {
   /**
-   * Uploads a file with options (max downloads, expiry time)
+   * Uploads a file with options (max downloads, expiry time) and reports progress
    */
-  async uploadFile(file: File, options?: UploadOptions): Promise<FileMetadata> {
+  async uploadFile(
+    file: File,
+    options?: UploadOptions,
+    onProgress?: (progress: number) => void
+  ): Promise<FileMetadata> {
     // 1. Frontend validation
     if (file.size > MAX_FILE_SIZE) {
       throw new Error(`File size exceeds the maximum limit of 10 MB. Your file: ${(file.size / (1024 * 1024)).toFixed(2)} MB`);
     }
 
     if (isMockMode()) {
-      await delay(800); // Simulate upload latency
+      // Simulate progressive incremental upload reporting in Mock Mode
+      const steps = [10, 30, 50, 70, 85, 95, 100];
+      for (const step of steps) {
+        if (onProgress) {
+          onProgress(step);
+        }
+        await delay(120); // total ~0.8s upload latency
+      }
 
       // Generate a short 6-character alphanumeric code
       const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -65,36 +76,55 @@ export const fileService = {
 
       return metadata;
     } else {
-      // Real API Call
-      const formData = new FormData();
-      formData.append("file", file);
-      
-      if (options?.maxDownloads !== undefined && options.maxDownloads > 0) {
-        formData.append("maxDownloads", options.maxDownloads.toString());
-      }
-      
-      if (options?.expiryHours !== undefined && options.expiryHours > 0) {
-        // Calculate expiresAt datetime string for the backend or pass duration
-        const expiresAtDate = new Date(Date.now() + options.expiryHours * 60 * 60 * 1000);
-        formData.append("expiresAt", expiresAtDate.toISOString());
-        formData.append("expiryHours", options.expiryHours.toString());
-      }
+      // Real API Call using XMLHttpRequest to track upload progress
+      return new Promise<FileMetadata>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const formData = new FormData();
+        formData.append("file", file);
+        
+        if (options?.maxDownloads !== undefined && options.maxDownloads > 0) {
+          formData.append("maxDownloads", options.maxDownloads.toString());
+        }
+        
+        if (options?.expiryHours !== undefined && options.expiryHours > 0) {
+          // Calculate expiresAt datetime string for the backend
+          const expiresAtDate = new Date(Date.now() + options.expiryHours * 60 * 60 * 1000);
+          formData.append("expiresAt", expiresAtDate.toISOString());
+          formData.append("expiryHours", options.expiryHours.toString());
+        }
 
-      const response = await fetch(`${API_BASE_URL}/files`, {
-        method: "POST",
-        body: formData,
+        // Attach progress listener
+        if (xhr.upload && onProgress) {
+          xhr.upload.addEventListener("progress", (event) => {
+            if (event.lengthComputable) {
+              const percentComplete = Math.round((event.loaded / event.total) * 100);
+              onProgress(percentComplete);
+            }
+          });
+        }
+
+        // Handle load completion
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const metadata = JSON.parse(xhr.responseText) as FileMetadata;
+              historyService.addToHistory(metadata);
+              resolve(metadata);
+            } catch (e) {
+              reject(new Error("Failed to parse response metadata from server."));
+            }
+          } else {
+            reject(new Error(xhr.responseText || `Upload failed with status code ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error("A network error occurred during file upload."));
+        };
+
+        xhr.open("POST", `${API_BASE_URL}/files`);
+        xhr.send(formData);
       });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || `Upload failed with status ${response.status}`);
-      }
-
-      const metadata = (await response.json()) as FileMetadata;
-      
-      // Save in history list
-      historyService.addToHistory(metadata);
-      return metadata;
     }
   },
 

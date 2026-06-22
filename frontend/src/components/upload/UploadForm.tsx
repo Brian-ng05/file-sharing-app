@@ -70,29 +70,17 @@ const UploadForm: React.FC = () => {
     setProgress(0);
     setError(null);
 
-    // Simulate progress uploading
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(interval);
-          return 90;
-        }
-        return prev + 10;
-      });
-    }, 80);
-
     try {
       const uploadOptions = {
         maxDownloads: maxDownloads > 0 ? maxDownloads : undefined,
         expiryHours: expiryHours > 0 ? expiryHours : undefined,
       };
 
-      const meta = await fileService.uploadFile(file, uploadOptions);
+      const meta = await fileService.uploadFile(file, uploadOptions, (p) => {
+        setProgress(p);
+      });
       
-      clearInterval(interval);
-      setProgress(100);
-      
-      // Short delay for progress visual
+      // Short delay for progress visual completion
       setTimeout(() => {
         setResult(meta);
         setIsUploading(false);
@@ -107,7 +95,6 @@ const UploadForm: React.FC = () => {
       }, 300);
       
     } catch (err: any) {
-      clearInterval(interval);
       setIsUploading(false);
       setError(err?.message || "An error occurred during file upload.");
     }
