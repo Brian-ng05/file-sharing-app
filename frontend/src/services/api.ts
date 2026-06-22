@@ -1,8 +1,8 @@
 // Base API configuration and helper
 
 const getBaseUrl = (): string => {
-  // Use environment variable if provided, else fallback to standard port for API Gateway
-  return import.meta.env.VITE_API_URL || "http://localhost:5000";
+  // Use environment variable if provided, else default to empty string for relative proxying in dev
+  return import.meta.env.VITE_API_URL || "";
 };
 
 export const API_BASE_URL = getBaseUrl();
