@@ -107,7 +107,23 @@ export const fileService = {
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
-              const metadata = JSON.parse(xhr.responseText) as FileMetadata;
+              const resData = JSON.parse(xhr.responseText) as { code: string; downloadUrl: string };
+              
+              const expiresAt = options?.expiryHours
+                ? new Date(Date.now() + options.expiryHours * 60 * 60 * 1000).toISOString()
+                : undefined;
+
+              const metadata: FileMetadata = {
+                code: resData.code,
+                originalFileName: file.name,
+                mimeType: file.type || "application/octet-stream",
+                sizeBytes: file.size,
+                maxDownloads: options?.maxDownloads || undefined,
+                downloadCount: 0,
+                expiresAt,
+                createdAt: new Date().toISOString(),
+              };
+
               historyService.addToHistory(metadata);
               resolve(metadata);
             } catch (e) {
@@ -157,21 +173,54 @@ export const fileService = {
 
       return metadata;
     } else {
-      // We assume /files/{code} or /files/{code}/metadata returns metadata details
-      const response = await fetch(`${API_BASE_URL}/files/${code}/metadata`);
+      // Fetch the binary file directly since the backend does not have a separate metadata endpoint
+      const response = await fetch(`${API_BASE_URL}/files/${code}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error("File not found or has expired.");
         }
-        if (response.status === 410) {
-          throw new Error("This file has expired.");
+        if (response.status === 410 || response.status === 500) {
+          throw new Error("This file has expired or is unavailable.");
         }
-        if (response.status === 403) {
-          throw new Error("Download limit has been reached for this file.");
-        }
-        throw new Error(`Failed to fetch file metadata: ${response.statusText}`);
+        throw new Error(`Failed to fetch file: ${response.statusText}`);
       }
-      return (await response.json()) as FileMetadata;
+
+      const blob = await response.blob();
+      
+      // Parse original filename from Content-Disposition header
+      let originalFileName = "shared-file";
+      const contentDisposition = response.headers.get("content-disposition");
+      if (contentDisposition) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(contentDisposition);
+        if (matches != null && matches[1]) {
+          originalFileName = matches[1].replace(/['"]/g, "");
+        }
+      }
+
+      const mimeType = blob.type || response.headers.get("content-type") || "application/octet-stream";
+      const sizeBytes = blob.size;
+
+      const metadata: FileMetadata = {
+        code,
+        originalFileName,
+        mimeType,
+        sizeBytes,
+        downloadCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Merge local uploader history metadata if present
+      const localHistory = historyService.getHistory();
+      const matchedLocal = localHistory.find((item) => item.code === code);
+      if (matchedLocal) {
+        metadata.expiresAt = matchedLocal.expiresAt;
+        metadata.maxDownloads = matchedLocal.maxDownloads;
+        metadata.downloadCount = matchedLocal.downloadCount;
+        metadata.createdAt = matchedLocal.createdAt;
+      }
+
+      return metadata;
     }
   },
 
@@ -200,7 +249,7 @@ export const fileService = {
     if (isMockMode()) {
       return "#mock-download";
     }
-    return `${API_BASE_URL}/files/${code}/download`;
+    return `${API_BASE_URL}/files/${code}`;
   },
 
   /**
@@ -244,10 +293,15 @@ export const fileService = {
         this.deleteMockData(code);
       }
     } else {
-      // In real mode, trigger standard browser navigate or fetch download
-      window.open(this.getDownloadUrl(code), "_blank");
+      // In real mode, download via dynamic anchor tag
+      const downloadUrl = this.getDownloadUrl(code);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      // Triggers browser download dialog
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
-      // Update local history download count after a short delay
       setTimeout(() => {
         historyService.updateDownloadCount(code);
       }, 1000);
