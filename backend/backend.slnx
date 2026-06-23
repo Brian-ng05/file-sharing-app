@@ -1,6 +1,4 @@
 <Solution>
   <Project Path="ApiGateway/ApiGateway.csproj" Id="74c3f3c4-0c57-4d87-9c78-0a894bd48eab" />
   <Project Path="FileService.Api/FileService.Api.csproj" />
-  <Project Path="MaintenanceService.Api/MaintenanceService.Api.csproj" Id="0a3c63c2-fb9c-486f-b6fe-6e14890431eb" />
-  <Project Path="StorageService.Api/StorageService.Api.csproj" Id="f5e97ace-87b4-4fc3-a9de-3ec6c88fc60e" />
 </Solution>

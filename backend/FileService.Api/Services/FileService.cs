@@ -1,23 +1,28 @@
-﻿using FileService.Api.Dtos.UploadFileRequest;
+using FileService.Api.Dtos.UploadFileRequest;
 using FileService.Api.Dtos.UploadFileResponse;
 using FileService.Api.Entities;
+using FileService.Api.Models;
 using FileService.Api.Repository;
+using Microsoft.Extensions.Options;
 
 namespace FileService.Api.Services
 {
     public class FileService : IFileService
     {
         private readonly IFileRepository _repo;
-        private readonly IWebHostEnvironment _env;
+        private readonly IStorageService _storageService;
+        private readonly AwsSettings _awsSettings;
 
         private const long MAX_SIZE = 10 * 1024 * 1024;
 
         public FileService(
             IFileRepository repo,
-            IWebHostEnvironment env)
+            IStorageService storageService,
+            IOptions<AwsSettings> awsSettings)
         {
             _repo = repo;
-            _env = env;
+            _storageService = storageService;
+            _awsSettings = awsSettings.Value;
         }
 
         public async Task<UploadFileResponse> UploadAsync(
@@ -27,7 +32,7 @@ namespace FileService.Api.Services
                 throw new Exception("Empty file");
 
             if (request.File.Length > MAX_SIZE)
-                throw new Exception("File exceeds 10MB");
+                throw new Exception("File exceeds 10 MB");
 
             var allowedMimeTypes = new[]
             {
@@ -47,25 +52,7 @@ namespace FileService.Api.Services
                 .ToString("N")
                 .Substring(0, 8);
 
-            var uploadsFolder = Path.Combine(
-                _env.WebRootPath,
-                "Uploads");
-
-            Directory.CreateDirectory(uploadsFolder);
-
-            var storageName =
-                $"{Guid.NewGuid()}{Path.GetExtension(request.File.FileName)}";
-
-            var fullPath = Path.Combine(
-                uploadsFolder,
-                storageName);
-
-            using (var stream = new FileStream(
-                       fullPath,
-                       FileMode.Create))
-            {
-                await request.File.CopyToAsync(stream);
-            }
+            var s3Key = await _storageService.UploadFileAsync(request.File);
 
             var entity = new FileMetadata
             {
@@ -73,7 +60,8 @@ namespace FileService.Api.Services
                 OriginalFilename = request.File.FileName,
                 MimeType = request.File.ContentType,
                 SizeBytes = request.File.Length,
-                StoragePath = fullPath,
+                S3Key = s3Key,
+                S3BucketName = _awsSettings.BucketName,
                 MaxDownloads = request.MaxDownloads,
                 DownloadCount = 0,
                 ExpiresAt = request.ExpiresAt,
@@ -114,8 +102,7 @@ namespace FileService.Api.Services
                 throw new Exception("Download limit reached");
             }
 
-            var bytes =
-                await File.ReadAllBytesAsync(file.StoragePath);
+            var bytes = await _storageService.DownloadFileAsync(file.S3Key);
 
             file.DownloadCount++;
 
@@ -135,10 +122,7 @@ namespace FileService.Api.Services
             if (file == null)
                 return;
 
-            if (File.Exists(file.StoragePath))
-            {
-                File.Delete(file.StoragePath);
-            }
+            await _storageService.DeleteFileAsync(file.S3Key);
 
             await _repo.DeleteAsync(file);
             await _repo.SaveChangesAsync();

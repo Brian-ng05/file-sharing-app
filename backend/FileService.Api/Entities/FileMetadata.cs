@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace FileService.Api.Entities;
 
@@ -19,7 +19,10 @@ public class FileMetadata
     public long SizeBytes { get; set; }
 
     [Required]
-    public string StoragePath { get; set; } = null!;
+    public string S3Key { get; set; } = null!;
+
+    [Required]
+    public string S3BucketName { get; set; } = null!;
 
     public int? MaxDownloads { get; set; }
 

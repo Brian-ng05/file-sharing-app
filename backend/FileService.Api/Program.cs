@@ -1,7 +1,9 @@
 
+using DotNetEnv;
 using FileService.Api.Data;
+using FileService.Api.Models;
 using FileService.Api.Repository;
-using FileManagementService = FileService.Api.Services.FileService;   
+using FileManagementService = FileService.Api.Services.FileService;
 using FileService.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,7 +13,10 @@ namespace FileService.Api
     {
         public static void Main(string[] args)
         {
+            Env.Load();
             var builder = WebApplication.CreateBuilder(args);
+
+            builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AwsSettings"));
 
             builder.Services.AddDbContext<ApplicationDbContext>(
                 options =>
@@ -21,6 +26,7 @@ namespace FileService.Api
 
             builder.Services.AddScoped<IFileRepository, FileRepository>();
 
+            builder.Services.AddScoped<IStorageService, AwsStorageService>();
             builder.Services.AddScoped<IFileService, FileManagementService>();
 
             builder.Services.AddControllers();
