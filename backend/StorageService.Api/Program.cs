@@ -1,4 +1,7 @@
 
+using StorageService.Api.Models;
+using StorageService.Api.Services;
+
 namespace StorageService.Api
 {
     public class Program
@@ -7,25 +10,19 @@ namespace StorageService.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-
+            builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AwsSettings"));
+            builder.Services.AddScoped<IS3Service, S3Service>();
             builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            builder.Services.AddOpenApi();
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.MapOpenApi();
-            }
+            app.UseSwagger();
+            app.UseSwaggerUI();
 
             app.UseAuthorization();
-
-
             app.MapControllers();
-
             app.Run();
         }
     }
