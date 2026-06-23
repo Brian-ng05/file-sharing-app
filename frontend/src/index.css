@@ -378,9 +378,10 @@ code {
 }
 
 .history-table th, .history-table td {
-  padding: 16px 24px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
+  vertical-align: middle;
 }
 
 .history-table th {
@@ -412,6 +413,7 @@ code {
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .status-badge.active {
@@ -556,4 +558,230 @@ code {
   color: var(--accent);
   border: 1px solid var(--accent-border);
 }
+
+/* Two-Column Dashboard CSS Styles */
+.dashboard-card {
+  max-width: 920px;
+  width: 100%;
+  padding: 32px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 36px;
+  margin-top: 24px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.dashboard-title-group {
+  margin-bottom: 8px;
+}
+
+.dashboard-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1e1b4b; /* dark indigo title */
+  margin: 0 0 4px;
+  letter-spacing: -0.75px;
+}
+
+.dashboard-subtitle {
+  font-size: 14px;
+  color: #818cf8; /* indigo subtitle */
+  margin: 0;
+}
+
+.dashboard-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-right {
+  display: flex;
+  flex-direction: column;
+}
+
+.queue-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e1b4b;
+  margin: 0 0 16px;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Scrollbar styling for the queue list */
+.queue-list::-webkit-scrollbar {
+  width: 6px;
+}
+.queue-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.queue-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.queue-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.queue-item.error {
+  border-color: #c084fc; /* purple border for errors matching mockup */
+  background: rgba(170, 59, 255, 0.02);
+}
+
+/* File Badge icons */
+.file-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 48px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Standard dog-ear fold on the file badge icon */
+.file-badge::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.35);
+  border-bottom-left-radius: 4px;
+}
+
+.file-badge.pdf { background: #3b82f6; }
+.file-badge.svg { background: #d97706; }
+.file-badge.eps { background: #6366f1; }
+.file-badge.img { background: #a855f7; }
+.file-badge.zip { background: #10b981; }
+.file-badge.doc { background: #2563eb; }
+.file-badge.oth { background: #6b7280; }
+
+.queue-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* allows text overflow ellipsis to function */
+}
+
+.queue-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.queue-filename {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4f46e5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.queue-item.error .queue-filename {
+  color: #dc2626;
+}
+
+.queue-status {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e1b4b;
+}
+
+.queue-status.completed {
+  color: #818cf8;
+}
+
+.queue-status.cancel-btn {
+  color: #4f46e5;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.queue-status.cancel-btn:hover {
+  text-decoration: underline;
+}
+
+.queue-progress-container {
+  width: 100%;
+  height: 3px;
+  background: #f1f5f9;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.queue-progress-bar {
+  height: 100%;
+  background: #4f46e5;
+  transition: width 0.2s ease;
+}
+
+.queue-item.error .queue-progress-bar {
+  background: #ef4444;
+}
+
+/* Empty Queue Helper */
+.queue-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--social-bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
 
