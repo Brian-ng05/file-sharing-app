@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="ApiGateway/ApiGateway.csproj" Id="74c3f3c4-0c57-4d87-9c78-0a894bd48eab" />
   <Project Path="FileService.Api/FileService.Api.csproj" />
+  <Project Path="StorageService.Api/StorageService.Api.csproj" />
 </Solution>

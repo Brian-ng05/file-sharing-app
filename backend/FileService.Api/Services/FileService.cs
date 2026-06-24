@@ -1,28 +1,23 @@
 using FileService.Api.Dtos.UploadFileRequest;
 using FileService.Api.Dtos.UploadFileResponse;
 using FileService.Api.Entities;
-using FileService.Api.Models;
 using FileService.Api.Repository;
-using Microsoft.Extensions.Options;
 
 namespace FileService.Api.Services
 {
     public class FileService : IFileService
     {
         private readonly IFileRepository _repo;
-        private readonly IStorageService _storageService;
-        private readonly AwsSettings _awsSettings;
+        private readonly IStorageClient _storageClient;
 
         private const long MAX_SIZE = 10 * 1024 * 1024;
 
         public FileService(
             IFileRepository repo,
-            IStorageService storageService,
-            IOptions<AwsSettings> awsSettings)
+            IStorageClient storageClient)
         {
             _repo = repo;
-            _storageService = storageService;
-            _awsSettings = awsSettings.Value;
+            _storageClient = storageClient;
         }
 
         public async Task<UploadFileResponse> UploadAsync(
@@ -52,30 +47,50 @@ namespace FileService.Api.Services
                 .ToString("N")
                 .Substring(0, 8);
 
-            var s3Key = await _storageService.UploadFileAsync(request.File);
+            string? s3Key = null;
+            string? bucketName = null;
 
-            var entity = new FileMetadata
+            try
             {
-                Code = code,
-                OriginalFilename = request.File.FileName,
-                MimeType = request.File.ContentType,
-                SizeBytes = request.File.Length,
-                S3Key = s3Key,
-                S3BucketName = _awsSettings.BucketName,
-                MaxDownloads = request.MaxDownloads,
-                DownloadCount = 0,
-                ExpiresAt = request.ExpiresAt,
-                CreatedAt = DateTime.UtcNow
-            };
+                (s3Key, bucketName) = await _storageClient.UploadFileAsync(request.File);
 
-            await _repo.AddAsync(entity);
-            await _repo.SaveChangesAsync();
+                var entity = new FileMetadata
+                {
+                    Code = code,
+                    OriginalFilename = request.File.FileName,
+                    MimeType = request.File.ContentType,
+                    SizeBytes = request.File.Length,
+                    S3Key = s3Key,
+                    S3BucketName = bucketName,
+                    MaxDownloads = request.MaxDownloads,
+                    DownloadCount = 0,
+                    ExpiresAt = request.ExpiresAt,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-            return new UploadFileResponse
+                await _repo.AddAsync(entity);
+                await _repo.SaveChangesAsync();
+
+                return new UploadFileResponse
+                {
+                    Code = code,
+                    DownloadUrl = $"/files/{code}"
+                };
+            }
+            catch
             {
-                Code = code,
-                DownloadUrl = $"/files/{code}"
-            };
+                if (s3Key != null)
+                {
+                    try
+                    {
+                        await _storageClient.DeleteFileAsync(s3Key);
+                    }
+                    catch
+                    {
+                    }
+                }
+                throw;
+            }
         }
 
         public async Task<(byte[] Content,
@@ -102,7 +117,7 @@ namespace FileService.Api.Services
                 throw new Exception("Download limit reached");
             }
 
-            var bytes = await _storageService.DownloadFileAsync(file.S3Key);
+            var bytes = await _storageClient.DownloadFileAsync(file.S3Key);
 
             file.DownloadCount++;
 
@@ -122,7 +137,7 @@ namespace FileService.Api.Services
             if (file == null)
                 return;
 
-            await _storageService.DeleteFileAsync(file.S3Key);
+            await _storageClient.DeleteFileAsync(file.S3Key);
 
             await _repo.DeleteAsync(file);
             await _repo.SaveChangesAsync();

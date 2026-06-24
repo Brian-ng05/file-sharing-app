@@ -1,9 +1,9 @@
 using Amazon.S3;
 using Amazon.S3.Model;
-using FileService.Api.Models;
+using StorageService.Api.Models;
 using Microsoft.Extensions.Options;
 
-namespace FileService.Api.Services;
+namespace StorageService.Api.Services;
 
 public class AwsStorageService : IStorageService
 {
@@ -13,7 +13,10 @@ public class AwsStorageService : IStorageService
     public AwsStorageService(IOptions<AwsSettings> awsSettings)
     {
         _awsSettings = awsSettings.Value;
-        _s3Client = new AmazonS3Client(_awsSettings.AccessKey, _awsSettings.SecretKey, Amazon.RegionEndpoint.GetBySystemName(_awsSettings.Region));
+        _s3Client = new AmazonS3Client(
+            _awsSettings.AccessKey,
+            _awsSettings.SecretKey,
+            Amazon.RegionEndpoint.GetBySystemName(_awsSettings.Region));
     }
 
     public async Task<string> UploadFileAsync(IFormFile file)
@@ -61,17 +64,5 @@ public class AwsStorageService : IStorageService
         };
 
         await _s3Client.DeleteObjectAsync(request);
-    }
-
-    public async Task<string> GetPresignedUrlAsync(string key)
-    {
-        var request = new GetPreSignedUrlRequest
-        {
-            BucketName = _awsSettings.BucketName,
-            Key = key,
-            Expires = DateTime.UtcNow.AddHours(1)
-        };
-
-        return _s3Client.GetPreSignedURL(request);
     }
 }

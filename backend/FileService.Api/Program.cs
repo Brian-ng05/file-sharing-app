@@ -1,5 +1,4 @@
 
-using DotNetEnv;
 using FileService.Api.Data;
 using FileService.Api.Models;
 using FileService.Api.Repository;
@@ -13,10 +12,10 @@ namespace FileService.Api
     {
         public static void Main(string[] args)
         {
-            Env.Load();
             var builder = WebApplication.CreateBuilder(args);
 
-            builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AwsSettings"));
+            builder.Services.Configure<StorageServiceSettings>(
+                builder.Configuration.GetSection("StorageService"));
 
             builder.Services.AddDbContext<ApplicationDbContext>(
                 options =>
@@ -26,7 +25,13 @@ namespace FileService.Api
 
             builder.Services.AddScoped<IFileRepository, FileRepository>();
 
-            builder.Services.AddScoped<IStorageService, AwsStorageService>();
+            builder.Services.AddHttpClient<IStorageClient, StorageHttpClient>((sp, client) =>
+            {
+                var settings = sp.GetRequiredService<
+                    Microsoft.Extensions.Options.IOptions<StorageServiceSettings>>().Value;
+                client.BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/");
+            });
+
             builder.Services.AddScoped<IFileService, FileManagementService>();
 
             builder.Services.AddControllers();
@@ -39,8 +44,6 @@ namespace FileService.Api
             // Swagger UI
             app.UseSwagger();
             app.UseSwaggerUI();
-
-            app.UseStaticFiles();
 
             app.MapControllers();
 

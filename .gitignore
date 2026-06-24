@@ -21,3 +21,6 @@ uploads/
 
 # Environment files
 .env
+appsettings.Development.json
+appsettings.*.Development.json
+

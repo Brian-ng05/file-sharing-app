@@ -1,4 +1,4 @@
-namespace FileService.Api.Models;
+namespace StorageService.Api.Models;
 
 public class AwsSettings
 {
