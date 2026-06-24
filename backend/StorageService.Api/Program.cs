@@ -1,4 +1,4 @@
-
+using Amazon.S3;
 using StorageService.Api.Models;
 using StorageService.Api.Services;
 
@@ -11,7 +11,14 @@ namespace StorageService.Api
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AwsSettings"));
-            builder.Services.AddScoped<IS3Service, S3Service>();
+
+            var awsSettings = builder.Configuration.GetSection("AwsSettings").Get<AwsSettings>();
+            builder.Services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client(
+                awsSettings?.AccessKey,
+                awsSettings?.SecretKey,
+                Amazon.RegionEndpoint.GetBySystemName(awsSettings?.Region ?? "ap-southeast-1")));
+
+            builder.Services.AddScoped<IStorageService, S3StorageService>();
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
