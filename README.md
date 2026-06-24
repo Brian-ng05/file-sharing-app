@@ -18,7 +18,7 @@ A full-stack file sharing application with React frontend and .NET backend, usin
 
 - .NET 10 SDK
 - Node.js 20+
-- SQL Server
+- SQL Server (or SQL Server LocalDB)
 - AWS Account with S3 bucket
 
 ### Backend Setup
@@ -42,7 +42,7 @@ A full-stack file sharing application with React frontend and .NET backend, usin
    - Verify `backend/FileService.Api/appsettings.json` has correct `StorageService:BaseUrl` (should be `http://localhost:7002`)
    - Update `ConnectionStrings:Default` with your SQL Server connection string
 
-3. **Run Migrations**
+3. **Run Migrations** (make sure SQL Server is running first!)
    ```bash
    cd backend/FileService.Api
    dotnet ef database update
