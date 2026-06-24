@@ -31,8 +31,8 @@ A full-stack file sharing application with React frontend and .NET backend, usin
        "AwsSettings": {
          "AccessKey": "YOUR_AWS_ACCESS_KEY",
          "SecretKey": "YOUR_AWS_SECRET_KEY",
-         "BucketName": "YOUR_S3_BUCKET_NAME",
-         "Region": "YOUR_AWS_REGION"
+         "BucketName": "amd201-file-sharing-699592747745-ap-southeast-2-an",
+         "Region": "ap-southeast-2"
        },
        ...
      }
