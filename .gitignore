@@ -20,7 +20,6 @@ wwwroot/uploads/
 uploads/
 
 # Environment files
-.env
 appsettings.Development.json
 appsettings.*.Development.json
 
