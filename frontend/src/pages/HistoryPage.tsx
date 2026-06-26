@@ -26,6 +26,8 @@ const HistoryPage: React.FC = () => {
   const [historyList, setHistoryList] = React.useState<FileMetadata[]>([]);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
   const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const [selectedItems, setSelectedItems] = React.useState<Set<string>>(new Set());
+  const [showCheckboxes, setShowCheckboxes] = React.useState<boolean>(false);
   const itemsPerPage = 6;
 
   React.useEffect(() => {
@@ -54,6 +56,13 @@ const HistoryPage: React.FC = () => {
       const updatedHistory = historyService.getHistory();
       setHistoryList(updatedHistory);
       
+      // Update selected items
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(code);
+        return newSet;
+      });
+      
       // Update current page if needed
       const newTotalPages = Math.ceil(updatedHistory.length / itemsPerPage);
       if (currentPage > newTotalPages && newTotalPages > 0) {
@@ -63,6 +72,67 @@ const HistoryPage: React.FC = () => {
       showToast("File deleted successfully.");
     } catch (err: any) {
       showToast(err?.message || "Failed to delete file.");
+    }
+  };
+
+  const handleToggleSelect = (code: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(code)) {
+        newSet.delete(code);
+      } else {
+        newSet.add(code);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === currentItems.length) {
+      // Deselect all current page
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        currentItems.forEach(file => newSet.delete(file.code));
+        return newSet;
+      });
+    } else {
+      // Select all current page
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        currentItems.forEach(file => newSet.add(file.code));
+        return newSet;
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedItems.size} file(s) from storage?`)) {
+      return;
+    }
+
+    try {
+      // Delete each selected file
+      for (const code of selectedItems) {
+        await fileService.deleteFile(code);
+      }
+      
+      // Update history
+      const updatedHistory = historyService.getHistory();
+      setHistoryList(updatedHistory);
+      
+      // Clear selected items
+      setSelectedItems(new Set());
+      
+      // Update current page if needed
+      const newTotalPages = Math.ceil(updatedHistory.length / itemsPerPage);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      }
+      
+      showToast("Selected files deleted successfully.");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to delete some files.");
     }
   };
 
@@ -155,7 +225,7 @@ const HistoryPage: React.FC = () => {
   };
 
   return (
-    <div className="history-page">
+    <div className={`history-page ${showCheckboxes ? "history-page--show-checkboxes" : ""}`}>
       {toastMsg && <div className="history-toast">{toastMsg}</div>}
 
       <header className="history-header">
@@ -181,23 +251,82 @@ const HistoryPage: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* Bulk actions bar */}
+          <div className="history-bulk-actions">
+            {showCheckboxes ? (
+              <>
+                <label className="history-select-all">
+                  <input
+                    type="checkbox"
+                    checked={currentItems.length > 0 && currentItems.every(file => selectedItems.has(file.code))}
+                    onChange={handleSelectAll}
+                  />
+                  Select All
+                </label>
+                
+                <div className="history-bulk-right-buttons">
+                  {selectedItems.size > 0 && (
+                    <button
+                      type="button"
+                      className="history-action history-action--danger"
+                      onClick={handleBulkDelete}
+                    >
+                      Delete ({selectedItems.size})
+                    </button>
+                  )}
+                  
+                  <button
+                    type="button"
+                    className="history-action"
+                    onClick={() => {
+                      setShowCheckboxes(false);
+                      setSelectedItems(new Set());
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{ marginLeft: "auto" }}>
+                <button
+                  type="button"
+                  className="history-action history-action--danger"
+                  onClick={() => setShowCheckboxes(true)}
+                >
+                  Delete More
+                </button>
+              </div>
+            )}
+          </div>
+
           <ul className="history-list" aria-label="Uploaded files">
             <li className="history-list-head" aria-hidden="true">
-              <span />
+              <span>&nbsp;</span>
+              <span>&nbsp;</span>
               <span>Name</span>
               <span>Size</span>
               <span>Uploaded</span>
               <span>Expiry</span>
               <span>Downloads</span>
-              <span />
+              <span>Actions</span>
             </li>
 
             {currentItems.map((file) => {
               const expired = isExpired(file.expiresAt);
               const expiryText = formatExpiry(file.expiresAt);
+              const isSelected = selectedItems.has(file.code);
 
               return (
-                <li key={file.code} className="history-row">
+                <li key={file.code} className={`history-row ${isSelected && showCheckboxes ? "history-row--selected" : ""}`}>
+                  {showCheckboxes && (
+                    <input
+                      type="checkbox"
+                      className="history-row-checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleSelect(file.code)}
+                    />
+                  )}
                   <div className="history-row-icon">
                     <FileIcon />
                   </div>
