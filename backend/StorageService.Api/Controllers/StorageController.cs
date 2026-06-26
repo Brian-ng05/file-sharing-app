@@ -5,10 +5,11 @@ using StorageService.Api.Services;
 namespace StorageService.Api.Controllers;
 
 [ApiController]
-[Route("api/storage")]
+[Route("api/objects")]
 public class StorageController : ControllerBase
 {
     private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
+
     private readonly IStorageService _storageService;
 
     public StorageController(IStorageService storageService)
@@ -16,7 +17,7 @@ public class StorageController : ControllerBase
         _storageService = storageService;
     }
 
-    [HttpPost("upload")]
+    [HttpPost]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<UploadResponse>> Upload([FromForm] UploadRequest request)
     {
@@ -27,34 +28,47 @@ public class StorageController : ControllerBase
 
         if (request.File.Length > MaxFileSize)
         {
-            return StatusCode(StatusCodes.Status413PayloadTooLarge, "File size exceeds 10 MB limit");
+            return StatusCode(
+                StatusCodes.Status413PayloadTooLarge,
+                "File size exceeds 10 MB limit");
         }
 
         var storageKey = await _storageService.UploadAsync(request.File);
-        return Ok(new UploadResponse { StorageKey = storageKey });
+
+        return Ok(new UploadResponse
+        {
+            StorageKey = storageKey
+        });
     }
 
-    [HttpPost("signed-url")]
-    public async Task<ActionResult<SignedUrlResponse>> GetSignedUrl([FromBody] SignedUrlRequest request)
+    [HttpGet("{storageKey}/signed-url")]
+    public async Task<ActionResult<SignedUrlResponse>> GetSignedUrl(
+        [FromRoute] string storageKey)
     {
-        if (string.IsNullOrWhiteSpace(request.StorageKey))
+        if (string.IsNullOrWhiteSpace(storageKey))
         {
             return BadRequest("StorageKey is required");
         }
 
-        var url = await _storageService.GenerateSignedUrlAsync(request.StorageKey);
-        return Ok(new SignedUrlResponse { Url = url });
+        var url = await _storageService.GenerateSignedUrlAsync(storageKey);
+
+        return Ok(new SignedUrlResponse
+        {
+            Url = url
+        });
     }
 
-    [HttpDelete("object")]
-    public async Task<IActionResult> DeleteObject([FromBody] DeleteObjectRequest request)
+    [HttpDelete("{storageKey}")]
+    public async Task<IActionResult> DeleteObject(
+        [FromRoute] string storageKey)
     {
-        if (string.IsNullOrWhiteSpace(request.StorageKey))
+        if (string.IsNullOrWhiteSpace(storageKey))
         {
             return BadRequest("StorageKey is required");
         }
 
-        await _storageService.DeleteAsync(request.StorageKey);
+        await _storageService.DeleteAsync(storageKey);
+
         return NoContent();
     }
 }
