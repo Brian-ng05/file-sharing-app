@@ -1,4 +1,5 @@
 import * as React from "react";
+import "./Dropzone.css";
 
 interface DropzoneProps {
   onFileSelected: (file: File) => void;
@@ -22,7 +23,7 @@ export const Dropzone: React.FC<DropzoneProps> = ({ onFileSelected }) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       onFileSelected(e.dataTransfer.files[0]);
     }
@@ -39,52 +40,61 @@ export const Dropzone: React.FC<DropzoneProps> = ({ onFileSelected }) => {
   };
 
   return (
-    <div 
+    <div
       className={`dropzone ${dragActive ? "active" : ""}`}
       onDragEnter={handleDrag}
       onDragLeave={handleDrag}
       onDragOver={handleDrag}
       onDrop={handleDrop}
       onClick={onButtonClick}
-      style={{ marginBottom: "20px" }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onButtonClick();
+        }
+      }}
+      aria-label="Upload file"
     >
-      <input 
-        type="file" 
+      <input
+        type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
         style={{ display: "none" }}
       />
-      
-      {/* Minimalist Upload Cloud-Arrow icon */}
-      <svg 
-        width="50" 
-        height="50" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="#818cf8" 
-        strokeWidth="1.5" 
-        strokeLinecap="round" 
+
+      <svg
+        className="dropzone-icon"
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ marginBottom: "16px" }}
+        aria-hidden="true"
       >
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
         <polyline points="17 8 12 3 7 8" />
         <line x1="12" y1="3" x2="12" y2="15" />
       </svg>
 
-      <div className="dropzone-text" style={{ fontSize: "15px", color: "var(--text)" }}>
-        Drag and drop file here
-      </div>
-      <div className="dropzone-subtext" style={{ margin: "8px 0", color: "#a5b4fc" }}>
-        -OR-
-      </div>
-      <button 
-        type="button" 
-        className="btn btn-primary"
-        style={{ background: "#1e0094", borderRadius: "10px", padding: "10px 24px", fontSize: "14px" }}
-        onClick={(e) => { e.stopPropagation(); onButtonClick(); }}
+      <p className="dropzone-title">Drop your file here</p>
+      <p className="dropzone-hint">or click to browse from your device</p>
+
+      <span className="dropzone-divider">or</span>
+
+      <button
+        type="button"
+        className="dropzone-browse"
+        onClick={(e) => {
+          e.stopPropagation();
+          onButtonClick();
+        }}
       >
-        Browse Files
+        Browse files
       </button>
     </div>
   );
