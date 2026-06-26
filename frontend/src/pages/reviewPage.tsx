@@ -8,6 +8,7 @@ import { FilePreview } from "../components/file/FilePreview";
 import { FileInfo } from "../components/file/FileInfo";
 import { DownloadButton } from "../components/file/DownloadButton";
 import { PasswordModal } from "../components/file/PasswordModal";
+import "./ReviewPage.css";
 
 const ReviewPage: React.FC = () => {
   const { code } = useParams<{ code: string }>();
@@ -19,7 +20,6 @@ const ReviewPage: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
 
-  // E2EE password state
   const [needsDecryption, setNeedsDecryption] = React.useState(false);
   const [modalError, setModalError] = React.useState<string | null>(null);
 
@@ -41,7 +41,6 @@ const ReviewPage: React.FC = () => {
         if (meta.isEncrypted) {
           setNeedsDecryption(true);
         } else {
-          // If not encrypted, resolve previewUrl from the cached blob immediately
           const blob = fileService.getCachedBlob(code);
           if (blob) {
             setPreviewUrl(URL.createObjectURL(blob));
@@ -57,7 +56,6 @@ const ReviewPage: React.FC = () => {
     fetchFileData();
   }, [code]);
 
-  // Clean up Object URL to prevent memory leaks
   React.useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -70,13 +68,10 @@ const ReviewPage: React.FC = () => {
     if (!code) return;
     setModalError(null);
     try {
-      // Decrypt the cached blob in place
       const decryptedBlob = await fileService.decryptCachedBlob(code, password);
-      
-      // Decryption succeeded
       setNeedsDecryption(false);
       setPreviewUrl(URL.createObjectURL(decryptedBlob));
-      showToast("Decrypted successfully!");
+      showToast("Decrypted successfully");
     } catch (err: any) {
       setModalError(err?.message || "Incorrect password or corrupted file.");
     }
@@ -87,19 +82,19 @@ const ReviewPage: React.FC = () => {
 
     try {
       await fileService.downloadFile(code, metadata.originalFileName);
-      showToast("Download started!");
-      
+      showToast("Download started");
+
       setMetadata((prev) => {
         if (!prev) return null;
         const newCount = prev.downloadCount + 1;
-        
+
         if (prev.maxDownloads !== undefined && newCount >= prev.maxDownloads) {
           setTimeout(() => {
             setError("This file has reached its download limit.");
             setMetadata(null);
           }, 1500);
         }
-        
+
         return {
           ...prev,
           downloadCount: newCount,
@@ -131,56 +126,32 @@ const ReviewPage: React.FC = () => {
     return <ErrorMessage message={error || "The file you are trying to view is no longer available."} />;
   }
 
-  // If file is encrypted and needs decryption password, show the modal
   if (needsDecryption) {
     return (
-      <PasswordModal 
-        onSubmit={handlePasswordSubmit} 
-        errorMessage={modalError} 
+      <PasswordModal
+        onSubmit={handlePasswordSubmit}
+        errorMessage={modalError}
       />
     );
   }
 
   return (
-    <div className="preview-container animate-fade-in">
-      {toastMsg && <div className="toast">{toastMsg}</div>}
+    <div className="portal-page">
+      {toastMsg && <div className="portal-toast">{toastMsg}</div>}
 
-      <div className="preview-card" style={{ borderRadius: "20px", padding: "32px", boxShadow: "var(--shadow)" }}>
-        <div className="dashboard-title-group" style={{ textAlign: "center", marginBottom: "24px" }}>
-          <h2 
-            className="dashboard-title" 
-            style={{ fontSize: "28px", maxWidth: "100%", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}
-          >
-            {metadata.originalFileName}
-          </h2>
-          <p className="dashboard-subtitle">Shared Document Overview</p>
+      <div className="portal-layout">
+        <FilePreview
+          mimeType={metadata.mimeType}
+          fileName={metadata.originalFileName}
+          previewUrl={previewUrl}
+        />
+
+        <div className="portal-details">
+          <h1 className="portal-filename">{metadata.originalFileName}</h1>
+          <FileInfo metadata={metadata} />
+          <DownloadButton onDownload={handleDownload} onDelete={handleDelete} />
         </div>
-
-        {/* Display Preview */}
-        <FilePreview 
-          mimeType={metadata.mimeType} 
-          fileName={metadata.originalFileName} 
-          previewUrl={previewUrl} 
-        />
-
-        {/* Metadata Details List */}
-        <FileInfo metadata={metadata} />
-
-        {/* Action Controls */}
-        <DownloadButton 
-          onDownload={handleDownload} 
-          onDelete={handleDelete} 
-        />
       </div>
-      <style>{`
-        .animate-fade-in {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 };

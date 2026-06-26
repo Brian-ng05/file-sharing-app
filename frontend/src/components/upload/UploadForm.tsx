@@ -43,6 +43,24 @@ const UploadForm: React.FC = () => {
       return;
     }
 
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/png",
+      "application/pdf",
+      "text/plain",
+      "application/zip"
+    ];
+    if (!allowedMimeTypes.includes(file.type)) {
+      setUploads((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, status: "error", errorMessage: "invalid file type", progress: 0 }
+            : item
+        )
+      );
+      return;
+    }
+
     try {
       const uploadOptions = {
         maxDownloads: maxDownloads > 0 ? maxDownloads : undefined,

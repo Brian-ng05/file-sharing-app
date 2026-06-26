@@ -1,5 +1,6 @@
 import * as React from "react";
 import { FileMetadata } from "../../types/file";
+import "./FileInfo.css";
 
 interface FileInfoProps {
   metadata: FileMetadata;
@@ -13,44 +14,60 @@ const formatBytes = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 };
 
+const getExtension = (name: string): string => {
+  return name.split(".").pop()?.toUpperCase() || "FILE";
+};
+
+const formatExpiry = (expiresAt: string): { text: string; expired: boolean } => {
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  if (diff <= 0) return { text: "Expired", expired: true };
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours > 24) {
+    return { text: `Expires in ${Math.floor(hours / 24)} days`, expired: false };
+  }
+  if (hours > 0) {
+    return { text: `Expires in ${hours} hours`, expired: false };
+  }
+  const mins = Math.floor(diff / (1000 * 60));
+  return { text: `Expires in ${mins} minutes`, expired: false };
+};
+
 export const FileInfo: React.FC<FileInfoProps> = ({ metadata }) => {
+  const parts: React.ReactNode[] = [
+    formatBytes(metadata.sizeBytes),
+    getExtension(metadata.originalFileName),
+  ];
+
+  if (metadata.maxDownloads) {
+    parts.push(`${metadata.downloadCount} of ${metadata.maxDownloads} downloads`);
+  } else if (metadata.downloadCount > 0) {
+    parts.push(`${metadata.downloadCount} downloads`);
+  }
+
+  if (metadata.expiresAt) {
+    const expiry = formatExpiry(metadata.expiresAt);
+    parts.push(
+      <span key="expiry" className={expiry.expired ? "portal-meta--expired" : undefined}>
+        {expiry.text}
+      </span>
+    );
+  }
+
   return (
-    <div className="preview-details" style={{ borderRadius: "12px", background: "var(--social-bg)", border: "1px solid var(--border)", marginBottom: "28px", padding: "8px 0" }}>
-      <div className="preview-row" style={{ borderColor: "var(--border)" }}>
-        <span className="preview-label" style={{ color: "#1e1b4b", fontWeight: 600 }}>File Code</span>
-        <span className="preview-value"><code>{metadata.code}</code></span>
-      </div>
-      <div className="preview-row" style={{ borderColor: "var(--border)" }}>
-        <span className="preview-label" style={{ color: "#1e1b4b", fontWeight: 600 }}>File Size</span>
-        <span className="preview-value" style={{ color: "var(--text)" }}>{formatBytes(metadata.sizeBytes)}</span>
-      </div>
-      <div className="preview-row" style={{ borderColor: "var(--border)" }}>
-        <span className="preview-label" style={{ color: "#1e1b4b", fontWeight: 600 }}>MIME Type</span>
-        <span className="preview-value" style={{ fontSize: "12px", color: "var(--text)" }}>{metadata.mimeType}</span>
-      </div>
-      <div className="preview-row" style={{ borderColor: "var(--border)" }}>
-        <span className="preview-label" style={{ color: "#1e1b4b", fontWeight: 600 }}>Downloads</span>
-        <span className="preview-value" style={{ color: "var(--text)" }}>
-          {metadata.maxDownloads 
-            ? `${metadata.downloadCount} / ${metadata.maxDownloads} downloads`
-            : `${metadata.downloadCount} / Unlimited`
-          }
-        </span>
-      </div>
-      <div className="preview-row" style={{ borderColor: "var(--border)", borderBottom: metadata.expiresAt ? "1px solid var(--border)" : "none" }}>
-        <span className="preview-label" style={{ color: "#1e1b4b", fontWeight: 600 }}>Uploaded At</span>
-        <span className="preview-value" style={{ color: "var(--text)" }}>
-          {new Date(metadata.createdAt).toLocaleString()}
-        </span>
-      </div>
-      {metadata.expiresAt && (
-        <div className="preview-row" style={{ borderColor: "var(--border)", borderBottom: "none" }}>
-          <span className="preview-label" style={{ color: "#1e1b4b", fontWeight: 600 }}>Expires At</span>
-          <span className="preview-value" style={{ color: "rgb(239, 68, 68)" }}>
-            {new Date(metadata.expiresAt).toLocaleString()}
-          </span>
-        </div>
+    <div className="portal-meta" aria-label="File details">
+      {metadata.isEncrypted && (
+        <>
+          <span className="portal-meta-badge">Encrypted</span>
+          <span className="portal-meta-sep">·</span>
+        </>
       )}
+      {parts.map((part, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <span className="portal-meta-sep">·</span>}
+          {part}
+        </React.Fragment>
+      ))}
     </div>
   );
 };

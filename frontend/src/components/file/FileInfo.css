@@ -1,0 +1,33 @@
+.portal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--portal-text-muted);
+  line-height: 1.5;
+}
+
+.portal-meta-sep {
+  color: var(--portal-text-subtle);
+  user-select: none;
+}
+
+.portal-meta--expired {
+  color: var(--portal-danger);
+  font-weight: 500;
+}
+
+.portal-meta-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--portal-text-muted);
+  background: var(--portal-preview-bg);
+  border: 1px solid var(--portal-border);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}

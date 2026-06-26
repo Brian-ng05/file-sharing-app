@@ -1,2 +1,0 @@
-This is some test content for the file sharing app E2EE decryption.
-Hello World!

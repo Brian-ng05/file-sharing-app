@@ -1,4 +1,5 @@
 import * as React from "react";
+import "./FilePreview.css";
 
 interface FilePreviewProps {
   mimeType: string;
@@ -11,20 +12,9 @@ const isImage = (mime: string): boolean => {
   return imgTypes.includes(mime.toLowerCase()) || mime.toLowerCase().startsWith("image/");
 };
 
-const getFileBadgeClass = (name: string): string => {
-  const ext = name.split(".").pop()?.toLowerCase() || "";
-  if (ext === "pdf") return "pdf";
-  if (ext === "svg") return "svg";
-  if (ext === "eps") return "eps";
-  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "img";
-  if (["zip", "rar", "tar", "gz", "7z"].includes(ext)) return "zip";
-  if (["doc", "docx", "xls", "xlsx", "txt"].includes(ext)) return "doc";
-  return "oth";
-};
-
-const getFileBadgeLabel = (name: string): string => {
-  const ext = name.split(".").pop()?.toLowerCase() || "file";
-  return ext.slice(0, 3).toUpperCase();
+const getExtension = (name: string): string => {
+  const ext = name.split(".").pop()?.toUpperCase() || "FILE";
+  return ext.length > 6 ? "FILE" : ext;
 };
 
 export const FilePreview: React.FC<FilePreviewProps> = ({
@@ -36,25 +26,34 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   const fileIsImage = isImage(mimeType) && !imgError;
 
   return (
-    <div className="preview-display" style={{ borderRadius: "12px", background: "#f8fafc", padding: "24px", display: "flex", justifyContent: "center", alignItems: "center", minHeight: "220px", marginBottom: "24px" }}>
+    <div className="portal-preview">
       {fileIsImage && previewUrl ? (
-        <img 
-          src={previewUrl} 
-          alt={fileName} 
-          className="preview-image"
+        <img
+          src={previewUrl}
+          alt={fileName}
+          className="portal-preview-image"
           onError={() => setImgError(true)}
-          style={{ maxWidth: "100%", maxHeight: "350px", objectFit: "contain", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
         />
       ) : (
-        <div className="preview-icon-wrapper" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div 
-            className={`file-badge ${getFileBadgeClass(fileName)}`}
-            style={{ width: "56px", height: "68px", fontSize: "12px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}
+        <div className="portal-preview-placeholder">
+          <svg
+            className="portal-preview-icon"
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
           >
-            {getFileBadgeLabel(fileName)}
-          </div>
-          <p style={{ fontSize: "14px", color: "var(--text)", fontWeight: 500 }}>
-            No inline preview available for this file type.
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span className="portal-preview-ext">{getExtension(fileName)}</span>
+          <p className="portal-preview-message">
+            Preview is not available for this file type. Download to view the contents.
           </p>
         </div>
       )}

@@ -3,10 +3,32 @@ import { Link } from "react-router-dom";
 import { historyService } from "../services/history.service";
 import { fileService } from "../services/file.service";
 import { FileMetadata } from "../types/file";
+import "./HistoryPage.css";
+
+const FileIcon: React.FC = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+  </svg>
+);
 
 const HistoryPage: React.FC = () => {
   const [historyList, setHistoryList] = React.useState<FileMetadata[]>([]);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const [selectedItems, setSelectedItems] = React.useState<Set<string>>(new Set());
+  const [showCheckboxes, setShowCheckboxes] = React.useState<boolean>(false);
+  const itemsPerPage = 6;
 
   React.useEffect(() => {
     setHistoryList(historyService.getHistory());
@@ -31,10 +53,86 @@ const HistoryPage: React.FC = () => {
 
     try {
       await fileService.deleteFile(code);
-      setHistoryList(historyService.getHistory());
+      const updatedHistory = historyService.getHistory();
+      setHistoryList(updatedHistory);
+      
+      // Update selected items
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(code);
+        return newSet;
+      });
+      
+      // Update current page if needed
+      const newTotalPages = Math.ceil(updatedHistory.length / itemsPerPage);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      }
+      
       showToast("File deleted successfully.");
     } catch (err: any) {
       showToast(err?.message || "Failed to delete file.");
+    }
+  };
+
+  const handleToggleSelect = (code: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(code)) {
+        newSet.delete(code);
+      } else {
+        newSet.add(code);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === currentItems.length) {
+      // Deselect all current page
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        currentItems.forEach(file => newSet.delete(file.code));
+        return newSet;
+      });
+    } else {
+      // Select all current page
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        currentItems.forEach(file => newSet.add(file.code));
+        return newSet;
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedItems.size} file(s) from storage?`)) {
+      return;
+    }
+
+    try {
+      // Delete each selected file
+      for (const code of selectedItems) {
+        await fileService.deleteFile(code);
+      }
+      
+      // Update history
+      const updatedHistory = historyService.getHistory();
+      setHistoryList(updatedHistory);
+      
+      // Clear selected items
+      setSelectedItems(new Set());
+      
+      // Update current page if needed
+      const newTotalPages = Math.ceil(updatedHistory.length / itemsPerPage);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      }
+      
+      showToast("Selected files deleted successfully.");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to delete some files.");
     }
   };
 
@@ -47,10 +145,10 @@ const HistoryPage: React.FC = () => {
   };
 
   const formatExpiry = (expiresAt?: string): string => {
-    if (!expiresAt) return "Never";
+    if (!expiresAt) return "Active";
     const diff = new Date(expiresAt).getTime() - Date.now();
     if (diff <= 0) return "Expired";
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     if (hours > 24) {
       return `${Math.floor(hours / 24)} days left`;
@@ -62,140 +160,248 @@ const HistoryPage: React.FC = () => {
     return `${mins} mins left`;
   };
 
-  // Helper determining extension class for styling badge backgrounds
-  const getFileBadgeClass = (name: string): string => {
-    const ext = name.split(".").pop()?.toLowerCase() || "";
-    if (ext === "pdf") return "pdf";
-    if (ext === "svg") return "svg";
-    if (ext === "eps") return "eps";
-    if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "img";
-    if (["zip", "rar", "tar", "gz", "7z"].includes(ext)) return "zip";
-    if (["doc", "docx", "xls", "xlsx", "txt"].includes(ext)) return "doc";
-    return "oth";
+  const isExpired = (expiresAt?: string): boolean => {
+    if (!expiresAt) return false;
+    return new Date(expiresAt).getTime() <= Date.now();
   };
 
-  // Helper converting extension to label (e.g. PDF, SVG, EPS)
-  const getFileBadgeLabel = (name: string): string => {
-    const ext = name.split(".").pop()?.toLowerCase() || "file";
-    return ext.slice(0, 3).toUpperCase();
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return "yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const formatDownloads = (file: FileMetadata): string => {
+    if (file.maxDownloads) {
+      return `${file.downloadCount}/${file.maxDownloads}`;
+    }
+    return file.downloadCount > 0 ? String(file.downloadCount) : "—";
+  };
+
+  // Pagination logic
+  const totalPages = Math.ceil(historyList.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = historyList.slice(indexOfFirstItem, indexOfLastItem);
+
+  const formatMetaLine = (file: FileMetadata): React.ReactNode => {
+    const parts: React.ReactNode[] = [
+      formatBytes(file.sizeBytes),
+      <>Uploaded {formatDate(file.createdAt)}</>,
+    ];
+
+    if (file.maxDownloads) {
+      parts.push(`${file.downloadCount}/${file.maxDownloads} downloads`);
+    }
+
+    const expired = isExpired(file.expiresAt);
+    const expiryText = formatExpiry(file.expiresAt);
+    parts.push(
+      expired ? (
+        <span className="history-row-status--expired">{expiryText}</span>
+      ) : expiryText === "Active" ? (
+        <span className="history-row-status--active">{expiryText}</span>
+      ) : (
+        expiryText
+      )
+    );
+
+    return parts.map((part, i) => (
+      <React.Fragment key={i}>
+        {i > 0 && <span className="history-row-meta-sep">•</span>}
+        {part}
+      </React.Fragment>
+    ));
   };
 
   return (
-    <div style={{ width: "100%", maxWidth: "920px", display: "flex", flexDirection: "column" }}>
-      {toastMsg && <div className="toast">{toastMsg}</div>}
-      
-      <div className="dashboard-title-group" style={{ textAlign: "left" }}>
-        <h1 className="dashboard-title">Upload History</h1>
-        <p className="dashboard-subtitle">View and manage files you have shared with your team</p>
-      </div>
+    <div className={`history-page ${showCheckboxes ? "history-page--show-checkboxes" : ""}`}>
+      {toastMsg && <div className="history-toast">{toastMsg}</div>}
+
+      <header className="history-header">
+        <h1 className="history-title">Upload History</h1>
+        <p className="history-subtitle">View and manage files you have shared</p>
+      </header>
 
       {historyList.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "48px 32px", marginTop: "24px" }}>
-          <div style={{ fontSize: "48px", marginBottom: "16px" }}>📁</div>
-          <h3 style={{ color: "#1e1b4b", margin: "0 0 8px" }}>No uploads found</h3>
-          <p style={{ color: "var(--text)", marginBottom: "24px", fontSize: "14px" }}>
-            You haven't uploaded any files yet, or they have all expired.
+        <div className="history-empty">
+          <div className="history-empty-icon" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+          </div>
+          <h2 className="history-empty-title">No uploads found</h2>
+          <p className="history-empty-desc">
+            You haven&apos;t uploaded any files yet, or they have all expired.
           </p>
-          <Link 
-            to="/" 
-            className="btn btn-primary" 
-            style={{ background: "#1e0094", borderRadius: "10px", padding: "10px 24px" }}
-          >
-            Upload a File
+          <Link to="/" className="history-empty-link">
+            Upload a file
           </Link>
         </div>
       ) : (
-        <div className="history-container" style={{ marginTop: "24px", borderRadius: "20px" }}>
-          <div className="history-header">
-            <h3 className="history-title" style={{ color: "#1e1b4b" }}>My Shared Files</h3>
-            <span className="mock-badge">{historyList.length} files</span>
+        <>
+          {/* Bulk actions bar */}
+          <div className="history-bulk-actions">
+            {showCheckboxes ? (
+              <>
+                <label className="history-select-all">
+                  <input
+                    type="checkbox"
+                    checked={currentItems.length > 0 && currentItems.every(file => selectedItems.has(file.code))}
+                    onChange={handleSelectAll}
+                  />
+                  Select All
+                </label>
+                
+                <div className="history-bulk-right-buttons">
+                  {selectedItems.size > 0 && (
+                    <button
+                      type="button"
+                      className="history-action history-action--danger"
+                      onClick={handleBulkDelete}
+                    >
+                      Delete ({selectedItems.size})
+                    </button>
+                  )}
+                  
+                  <button
+                    type="button"
+                    className="history-action"
+                    onClick={() => {
+                      setShowCheckboxes(false);
+                      setSelectedItems(new Set());
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{ marginLeft: "auto" }}>
+                <button
+                  type="button"
+                  className="history-action history-action--danger"
+                  onClick={() => setShowCheckboxes(true)}
+                >
+                  Delete More
+                </button>
+              </div>
+            )}
           </div>
-          
-          <div className="history-table-wrapper">
-            <table className="history-table">
-              <thead>
-                <tr>
-                  <th>File Name</th>
-                  <th>Size</th>
-                  <th>Downloads</th>
-                  <th>Expires</th>
-                  <th style={{ textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyList.map((file) => (
-                  <tr key={file.code}>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        {/* Extension Logo Badge matching Upload Dashboard */}
-                        <div 
-                          className={`file-badge ${getFileBadgeClass(file.originalFileName)}`}
-                          style={{ width: "32px", height: "38px", fontSize: "8px" }}
-                        >
-                          {getFileBadgeLabel(file.originalFileName)}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div 
-                            className="file-name-cell" 
-                            title={file.originalFileName}
-                            style={{ color: "#1e1b4b", fontSize: "14px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                          >
-                            {file.originalFileName}
-                          </div>
-                          <div style={{ fontSize: "11px", color: "var(--text)", marginTop: "2px" }}>
-                            Code: <code>{file.code}</code>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ color: "var(--text-h)", whiteSpace: "nowrap" }}>{formatBytes(file.sizeBytes)}</td>
-                    <td style={{ color: "var(--text-h)", whiteSpace: "nowrap" }}>
-                      {file.maxDownloads 
-                        ? `${file.downloadCount} / ${file.maxDownloads}`
-                        : `${file.downloadCount} / ∞`
-                      }
-                    </td>
-                    <td>
-                      <span className={`status-badge ${file.expiresAt ? "expired" : "active"}`}>
-                        {formatExpiry(file.expiresAt)}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                        <button 
-                          type="button" 
-                          className="btn btn-secondary btn-sm" 
-                          style={{ borderRadius: "8px", padding: "6px 12px" }}
-                          onClick={() => copyLink(file.code)}
-                          title="Copy Shareable Link"
-                        >
-                          Copy Link
-                        </button>
-                        <Link 
-                          to={`/f/${file.code}`} 
-                          className="btn btn-primary btn-sm"
-                          style={{ background: "#1e0094", borderRadius: "8px", padding: "6px 12px" }}
-                          title="Preview File"
-                        >
-                          Preview
-                        </Link>
-                        <button 
-                          type="button" 
-                          className="btn btn-danger btn-sm" 
-                          style={{ borderRadius: "8px", padding: "6px 12px" }}
-                          onClick={() => handleDelete(file.code)}
-                          title="Delete File"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+
+          <ul className="history-list" aria-label="Uploaded files">
+            <li className="history-list-head" aria-hidden="true">
+              <span>&nbsp;</span>
+              <span>&nbsp;</span>
+              <span>Name</span>
+              <span>Size</span>
+              <span>Uploaded</span>
+              <span>Expiry</span>
+              <span>Downloads</span>
+              <span>Actions</span>
+            </li>
+
+            {currentItems.map((file) => {
+              const expired = isExpired(file.expiresAt);
+              const expiryText = formatExpiry(file.expiresAt);
+              const isSelected = selectedItems.has(file.code);
+
+              return (
+                <li key={file.code} className={`history-row ${isSelected && showCheckboxes ? "history-row--selected" : ""}`}>
+                  {showCheckboxes && (
+                    <input
+                      type="checkbox"
+                      className="history-row-checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleSelect(file.code)}
+                    />
+                  )}
+                  <div className="history-row-icon">
+                    <FileIcon />
+                  </div>
+
+                  <div className="history-row-main">
+                    <span className="history-row-name" title={file.originalFileName}>
+                      {file.originalFileName}
+                    </span>
+                  </div>
+
+                  <span className="history-row-meta">{formatMetaLine(file)}</span>
+
+                  <span className="history-row-size">{formatBytes(file.sizeBytes)}</span>
+                  <span className="history-row-date">{formatDate(file.createdAt)}</span>
+                  <span
+                    className={`history-row-expiry ${
+                      expired
+                        ? "history-row-status--expired"
+                        : expiryText === "Active"
+                          ? "history-row-status--active"
+                          : ""
+                    }`}
+                  >
+                    {expiryText}
+                  </span>
+                  <span className="history-row-downloads">{formatDownloads(file)}</span>
+
+                  <div className="history-row-actions">
+                    <Link to={`/f/${file.code}`} className="history-action history-action--primary">
+                      View
+                    </Link>
+                    <button
+                      type="button"
+                      className="history-action"
+                      onClick={() => copyLink(file.code)}
+                      title="Copy shareable link"
+                    >
+                      Copy Link
+                    </button>
+                    <button
+                      type="button"
+                      className="history-action history-action--danger"
+                      onClick={() => handleDelete(file.code)}
+                      title="Delete file"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {totalPages > 1 && (
+            <div className="history-pagination">
+              <button
+                className="history-pagination-btn"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
+              <span className="history-pagination-info">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                className="history-pagination-btn"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
