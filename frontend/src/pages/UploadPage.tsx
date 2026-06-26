@@ -50,6 +50,18 @@ const UploadPage: React.FC = () => {
       return;
     }
 
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/png",
+      "application/pdf",
+      "text/plain",
+      "application/zip"
+    ];
+    if (!allowedMimeTypes.includes(file.type)) {
+      setError("Invalid file type. Allowed types: JPEG, PNG, PDF, TXT, ZIP.");
+      return;
+    }
+
     setSelectedFile(file);
     setError(null);
 
@@ -66,13 +78,25 @@ const UploadPage: React.FC = () => {
   const handleShare = async () => {
     if (!selectedFile) return;
 
+    // Validation checks
+    const numExpiryValue = Number(expiryValue);
+    if (expiryValue && (isNaN(numExpiryValue) || numExpiryValue <= 0)) {
+      setError("Expiry must be a positive number.");
+      return;
+    }
+
+    const numDownloadLimit = Number(downloadLimit);
+    if (downloadLimit && (isNaN(numDownloadLimit) || numDownloadLimit <= 0 || !Number.isInteger(numDownloadLimit))) {
+      setError("Download limit must be a positive integer.");
+      return;
+    }
+
     setState("uploading");
     setError(null);
 
     try {
       // Calculate expiry hours
       let expiryHours;
-      const numExpiryValue = Number(expiryValue);
       if (!isNaN(numExpiryValue) && numExpiryValue > 0) {
         if (expiryUnit === "days") {
           expiryHours = numExpiryValue * 24;
@@ -84,7 +108,6 @@ const UploadPage: React.FC = () => {
       }
 
       // Calculate max downloads
-      const numDownloadLimit = Number(downloadLimit);
       const maxDownloads = !isNaN(numDownloadLimit) && numDownloadLimit > 0 ? numDownloadLimit : undefined;
 
       const uploadOptions = {
