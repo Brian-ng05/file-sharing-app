@@ -1,0 +1,60 @@
+.portal-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  background: var(--portal-preview-bg);
+  border: 1px solid var(--portal-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.portal-preview-image {
+  display: block;
+  max-width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+}
+
+.portal-preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.portal-preview-icon {
+  color: var(--portal-text-muted);
+}
+
+.portal-preview-ext {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--portal-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border: 1px solid var(--portal-border);
+  border-radius: 4px;
+  background: var(--portal-surface);
+}
+
+.portal-preview-message {
+  margin: 0;
+  font-size: 13px;
+  color: var(--portal-text-muted);
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+@media (max-width: 767px) {
+  .portal-preview {
+    min-height: 280px;
+  }
+
+  .portal-preview-image {
+    max-height: 360px;
+  }
+}
