@@ -1,5 +1,13 @@
 # Visual Studio
 .vs/
+**/bin/
+**/obj/
+
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
 # Build
 bin/
@@ -18,3 +26,6 @@ obj/
 # Uploads
 wwwroot/uploads/
 uploads/
+
+# Environment files
+.env
