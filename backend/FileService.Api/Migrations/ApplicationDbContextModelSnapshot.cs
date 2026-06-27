@@ -24,11 +24,9 @@ namespace FileService.Api.Migrations
 
             modelBuilder.Entity("FileService.Api.Entities.FileMetadata", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -57,7 +55,7 @@ namespace FileService.Api.Migrations
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("StoragePath")
+                    b.Property<string>("StorageKey")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

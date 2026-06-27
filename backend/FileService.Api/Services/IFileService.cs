@@ -6,11 +6,9 @@ namespace FileService.Api.Services
 
     public interface IFileService
     {
-        Task<UploadFileResponse> UploadAsync(
-            UploadFileRequest request);
+        Task<UploadFileResponse> UploadAsync(UploadFileRequest request);
 
-        Task<(byte[] Content, string FileName, string MimeType)>
-            DownloadAsync(string code);
+        Task<string> DownloadAsync(string code);
 
         Task DeleteAsync(string code);
     }

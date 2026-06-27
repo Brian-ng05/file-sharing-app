@@ -23,6 +23,45 @@
                     "Port": 7001
                 }
             ]
+        },
+        {
+            "UpstreamPathTemplate": "/api/objects",
+            "UpstreamHttpMethod": [ "POST" ],
+
+            "DownstreamPathTemplate": "/api/objects",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 5282
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/api/objects/{storageKey}",
+            "UpstreamHttpMethod": [ "DELETE" ],
+
+            "DownstreamPathTemplate": "/api/objects/{storageKey}",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 5282
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/api/objects/{storageKey}/signed-url",
+            "UpstreamHttpMethod": [ "GET" ],
+
+            "DownstreamPathTemplate": "/api/objects/{storageKey}/signed-url",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 5282
+                }
+            ]
         }
     ],
     "GlobalConfiguration": {

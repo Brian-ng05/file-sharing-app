@@ -15,15 +15,14 @@ namespace FileService.Api.Migrations
                 name: "Files",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Code = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    StorageKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     OriginalFilename = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     MimeType = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     SizeBytes = table.Column<long>(type: "bigint", nullable: false),
-                    StoragePath = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    MaxDownloads = table.Column<int>(type: "int", nullable: true),
                     DownloadCount = table.Column<int>(type: "int", nullable: false),
+                    MaxDownloads = table.Column<int>(type: "int", nullable: true),
                     ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },

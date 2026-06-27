@@ -20,28 +20,21 @@ namespace FileService.Api.Controllers
         public async Task<IActionResult> Upload(
             [FromForm] UploadFileRequest request)
         {
-            var result =
-                await _service.UploadAsync(request);
+            var result = await _service.UploadAsync(request);
 
             return Ok(result);
         }
 
         [HttpGet("{code}")]
-        public async Task<IActionResult> Download(
-            string code)
+        public async Task<IActionResult> Download(string code)
         {
-            var result =
-                await _service.DownloadAsync(code);
+            var signedUrl = await _service.DownloadAsync(code);
 
-            return File(
-                result.Content,
-                result.MimeType,
-                result.FileName);
+            return Redirect(signedUrl);
         }
 
         [HttpDelete("{code}")]
-        public async Task<IActionResult> Delete(
-            string code)
+        public async Task<IActionResult> Delete(string code)
         {
             await _service.DeleteAsync(code);
 

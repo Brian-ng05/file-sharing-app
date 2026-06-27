@@ -1,10 +1,11 @@
 ﻿using Microsoft.AspNetCore.Http;
+using StorageService.Api.DTOs;
 
 namespace StorageService.Api.Services;
 
 public interface IStorageService
 {
-    Task<string> UploadAsync(IFormFile file);
+    Task<UploadResponse> UploadAsync(IFormFile file);
 
     Task DeleteAsync(string storageKey);
 
