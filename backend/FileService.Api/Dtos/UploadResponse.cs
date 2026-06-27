@@ -1,4 +1,4 @@
-﻿namespace StorageService.Api.DTOs;
+﻿namespace StorageService.Api.Dtos;
 
 public class UploadResponse
 {

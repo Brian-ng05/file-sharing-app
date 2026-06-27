@@ -4,26 +4,21 @@ namespace FileService.Api.Entities;
 
 public class FileMetadata
 {
-    [Key]
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
-    [Required]
-    public string Code { get; set; } = null!;
+    public string Code { get; set; } = default!;
 
-    [Required]
-    public string OriginalFilename { get; set; } = null!;
+    public string StorageKey { get; set; } = default!;
 
-    [Required]
-    public string MimeType { get; set; } = null!;
+    public string OriginalFilename { get; set; } = default!;
+
+    public string MimeType { get; set; } = default!;
 
     public long SizeBytes { get; set; }
 
-    [Required]
-    public string StoragePath { get; set; } = null!;
+    public int DownloadCount { get; set; }
 
     public int? MaxDownloads { get; set; }
-
-    public int DownloadCount { get; set; }
 
     public DateTime? ExpiresAt { get; set; }
 

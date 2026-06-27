@@ -1,6 +1,7 @@
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
+using StorageService.Api.DTOs;
 using StorageService.Api.Models;
 
 namespace StorageService.Api.Services;
@@ -18,29 +19,54 @@ public class S3StorageService : IStorageService
         _awsSettings = awsSettings.Value;
     }
 
-    public async Task<string> UploadAsync(IFormFile file)
+    public async Task<UploadResponse> UploadAsync(IFormFile file)
     {
-        var extension = Path.GetExtension(file.FileName);
-        var storageKey = $"uploads/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}{extension}";
-
-        await using var stream = file.OpenReadStream();
-
-        var request = new PutObjectRequest
+        try
         {
-            BucketName = _awsSettings.BucketName,
-            Key = storageKey,
-            InputStream = stream,
-            ContentType = file.ContentType
-        };
+            var extension = Path.GetExtension(file.FileName);
 
-        await _s3.PutObjectAsync(request);
+            var storageKey =
+                $"uploads/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}{extension}";
 
-        return storageKey;
+            await using var stream = file.OpenReadStream();
+
+            var request = new PutObjectRequest
+            {
+                BucketName = _awsSettings.BucketName,
+                Key = storageKey,
+                InputStream = stream,
+                ContentType = file.ContentType
+            };
+
+            await _s3.PutObjectAsync(request);
+
+            return new UploadResponse
+            {
+                StorageKey = storageKey,
+            };
+        }
+        catch (AmazonS3Exception ex)
+        {
+            throw new Exception(
+                $"Unable to upload file to storage. {ex.Message}",
+                ex);
+        }
     }
 
     public async Task DeleteAsync(string storageKey)
     {
-        await _s3.DeleteObjectAsync(_awsSettings.BucketName, storageKey);
+        try
+        {
+            await _s3.DeleteObjectAsync(
+                _awsSettings.BucketName,
+                storageKey);
+        }
+        catch (AmazonS3Exception ex)
+        {
+            throw new Exception(
+                $"Unable to delete object {storageKey}.",
+                ex);
+        }
     }
 
     public Task<string> GenerateSignedUrlAsync(string storageKey)
@@ -53,6 +79,7 @@ public class S3StorageService : IStorageService
         };
 
         var url = _s3.GetPreSignedURL(request);
+
         return Task.FromResult(url);
     }
 }

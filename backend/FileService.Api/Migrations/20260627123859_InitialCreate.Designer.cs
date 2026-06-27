@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FileService.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260621065147_InitialCreate")]
+    [Migration("20260627123859_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -27,11 +27,9 @@ namespace FileService.Api.Migrations
 
             modelBuilder.Entity("FileService.Api.Entities.FileMetadata", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -60,7 +58,7 @@ namespace FileService.Api.Migrations
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("StoragePath")
+                    b.Property<string>("StorageKey")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

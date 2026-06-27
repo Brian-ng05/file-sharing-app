@@ -33,11 +33,11 @@ public class StorageController : ControllerBase
                 "File size exceeds 10 MB limit");
         }
 
-        var storageKey = await _storageService.UploadAsync(request.File);
+        var response = await _storageService.UploadAsync(request.File);
 
         return Ok(new UploadResponse
         {
-            StorageKey = storageKey
+            StorageKey = response.StorageKey
         });
     }
 
