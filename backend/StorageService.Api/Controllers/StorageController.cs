@@ -41,33 +41,38 @@ public class StorageController : ControllerBase
         });
     }
 
-    [HttpGet("{storageKey}/signed-url")]
-    public async Task<ActionResult<SignedUrlResponse>> GetSignedUrl(
-        [FromRoute] string storageKey)
+    [HttpPost("signed-url")]
+    public async Task<ActionResult<SignedUrlResponse>> GetSignedUrl([FromBody] SignedUrlRequest request)
     {
-        if (string.IsNullOrWhiteSpace(storageKey))
+        if (request == null || string.IsNullOrWhiteSpace(request.StorageKey))
         {
             return BadRequest("StorageKey is required");
         }
 
-        var url = await _storageService.GenerateSignedUrlAsync(storageKey);
-
-        return Ok(new SignedUrlResponse
+        try
         {
-            Url = url
-        });
+            var url = await _storageService.GenerateSignedUrlAsync(request.StorageKey);
+
+            return Ok(new SignedUrlResponse
+            {
+                Url = url
+            });
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound();
+        }
     }
 
-    [HttpDelete("{storageKey}")]
-    public async Task<IActionResult> DeleteObject(
-        [FromRoute] string storageKey)
+    [HttpDelete]
+    public async Task<IActionResult> Delete([FromBody] DeleteObjectRequest request)
     {
-        if (string.IsNullOrWhiteSpace(storageKey))
+        if (request == null || string.IsNullOrWhiteSpace(request.StorageKey))
         {
             return BadRequest("StorageKey is required");
         }
 
-        await _storageService.DeleteAsync(storageKey);
+        await _storageService.DeleteAsync(request.StorageKey);
 
         return NoContent();
     }
