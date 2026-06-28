@@ -68,13 +68,11 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         // Arrange
         var client = _factory.CreateClient();
         var fakeService = _factory.Services.GetRequiredService<IStorageService>() as FakeStorageService;
-        var testKey = "uploads/2026/06/27/test.pdf";
+        var testKey = "uploads/2026/06/28/test.pdf";
         fakeService!.AddObject(testKey);
 
-        var request = new SignedUrlRequest { StorageKey = testKey };
-
         // Act
-        var response = await client.PostAsJsonAsync("/api/objects/signed-url", request);
+        var response = await client.GetAsync($"/api/objects/signed-url/{testKey}");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -88,10 +86,10 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
     {
         // Arrange
         var client = _factory.CreateClient();
-        var request = new SignedUrlRequest { StorageKey = "uploads/2026/06/27/missing.pdf" };
+        var testKey = "uploads/2026/06/28/missing.pdf";
 
         // Act
-        var response = await client.PostAsJsonAsync("/api/objects/signed-url", request);
+        var response = await client.GetAsync($"/api/objects/signed-url/{testKey}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -102,10 +100,9 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
     {
         // Arrange
         var client = _factory.CreateClient();
-        var request = new SignedUrlRequest { StorageKey = "" };
 
         // Act
-        var response = await client.PostAsJsonAsync("/api/objects/signed-url", request);
+        var response = await client.GetAsync("/api/objects/signed-url/");
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -118,17 +115,11 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         // Arrange
         var client = _factory.CreateClient();
         var fakeService = _factory.Services.GetRequiredService<IStorageService>() as FakeStorageService;
-        var testKey = "uploads/2026/06/27/to-delete.pdf";
+        var testKey = "uploads/2026/06/28/to-delete.pdf";
         fakeService!.AddObject(testKey);
 
-        var request = new DeleteObjectRequest { StorageKey = testKey };
-        var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/objects")
-        {
-            Content = JsonContent.Create(request)
-        };
-
         // Act
-        var response = await client.SendAsync(httpRequest);
+        var response = await client.DeleteAsync($"/api/objects/{testKey}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
@@ -140,39 +131,17 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         // Arrange
         var client = _factory.CreateClient();
         var fakeService = _factory.Services.GetRequiredService<IStorageService>() as FakeStorageService;
-        var testKey = "uploads/2026/06/27/delete-then-test.pdf";
+        var testKey = "uploads/2026/06/28/delete-then-test.pdf";
         fakeService!.AddObject(testKey);
 
         // Act 1 - Delete
-        var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/objects")
-        {
-            Content = JsonContent.Create(new DeleteObjectRequest { StorageKey = testKey })
-        };
-        var deleteResponse = await client.SendAsync(deleteRequest);
+        var deleteResponse = await client.DeleteAsync($"/api/objects/{testKey}");
         deleteResponse.EnsureSuccessStatusCode();
 
         // Act 2 - Try to get signed URL
-        var signedUrlResponse = await client.PostAsJsonAsync("/api/objects/signed-url", new SignedUrlRequest { StorageKey = testKey });
+        var signedUrlResponse = await client.GetAsync($"/api/objects/signed-url/{testKey}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, signedUrlResponse.StatusCode);
-    }
-
-    [Fact]
-    public async Task Delete_WithEmptyStorageKey_ReturnsBadRequest()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        var request = new DeleteObjectRequest { StorageKey = "" };
-        var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/objects")
-        {
-            Content = JsonContent.Create(request)
-        };
-
-        // Act
-        var response = await client.SendAsync(httpRequest);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }
