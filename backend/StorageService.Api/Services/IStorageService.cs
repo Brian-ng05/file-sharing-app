@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿﻿using Microsoft.AspNetCore.Http;
 using StorageService.Api.DTOs;
 
 namespace StorageService.Api.Services;
@@ -10,4 +10,6 @@ public interface IStorageService
     Task DeleteAsync(string storageKey);
 
     Task<string> GenerateSignedUrlAsync(string storageKey);
+
+    Task<bool> ExistsAsync(string storageKey);
 }

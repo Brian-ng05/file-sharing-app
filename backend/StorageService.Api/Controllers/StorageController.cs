@@ -52,12 +52,19 @@ public class StorageController : ControllerBase
             return BadRequest("StorageKey is required");
         }
 
-        var url = await _storageService.GenerateSignedUrlAsync(storageKey);
-
-        return Ok(new SignedUrlResponse
+        try
         {
-            Url = url
-        });
+            var url = await _storageService.GenerateSignedUrlAsync(storageKey);
+
+            return Ok(new SignedUrlResponse
+            {
+                Url = url
+            });
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound();
+        }
     }
 
     [HttpDelete("{*storageKey}")]

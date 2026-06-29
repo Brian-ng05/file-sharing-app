@@ -3,6 +3,7 @@ using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
 using StorageService.Api.DTOs;
 using StorageService.Api.Models;
+using System.Net;
 
 namespace StorageService.Api.Services;
 
@@ -79,8 +80,35 @@ public class S3StorageService : IStorageService
             $"[StorageService] Delete response for {storageKey}: {deleteResponse.HttpStatusCode}");
     }
 
-    public Task<string> GenerateSignedUrlAsync(string storageKey)
+    public async Task<bool> ExistsAsync(string storageKey)
     {
+        try
+        {
+            await _s3.GetObjectMetadataAsync(_awsSettings.BucketName, storageKey);
+            return true;
+        }
+        catch (AmazonS3Exception ex) when (
+            ex.StatusCode == HttpStatusCode.NotFound ||
+            ex.ErrorCode == "NoSuchKey" ||
+            ex.ErrorCode == "NotFound")
+        {
+            return false;
+        }
+    }
+
+    public async Task<string> GenerateSignedUrlAsync(string storageKey)
+    {
+        if (string.IsNullOrWhiteSpace(storageKey))
+        {
+            throw new ArgumentException("StorageKey cannot be empty", nameof(storageKey));
+        }
+
+        var exists = await ExistsAsync(storageKey);
+        if (!exists)
+        {
+            throw new FileNotFoundException($"Object with key {storageKey} not found", storageKey);
+        }
+
         var request = new GetPreSignedUrlRequest
         {
             BucketName = _awsSettings.BucketName,
@@ -90,6 +118,6 @@ public class S3StorageService : IStorageService
 
         var url = _s3.GetPreSignedURL(request);
 
-        return Task.FromResult(url);
+        return url;
     }
 }
