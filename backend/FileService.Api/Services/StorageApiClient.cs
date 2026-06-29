@@ -46,7 +46,7 @@ namespace FileService.Api.Services
         public async Task<SignedUrlResponse> GetSignedUrlAsync(string storageKey)
         {
             var result = await _http.GetFromJsonAsync<SignedUrlResponse>(
-                $"api/objects/{Uri.EscapeDataString(storageKey)}/signed-url");
+                $"api/objects/signed-url?storageKey={Uri.EscapeDataString(storageKey)}");
 
             if (result is null)
             {
@@ -59,10 +59,24 @@ namespace FileService.Api.Services
 
         public async Task DeleteFileAsync(string storageKey)
         {
-            var response = await _http.DeleteAsync(
-                $"api/objects/{Uri.EscapeDataString(storageKey)}");
+            // Encode individual path segments but preserve slashes so the catch-all route receives the correct key.
+            var encodedSegments = storageKey
+                .Split('/')
+                .Select(s => Uri.EscapeDataString(s));
+            var encodedPath = string.Join('/', encodedSegments);
 
-            response.EnsureSuccessStatusCode();
+            // Build an absolute Uri to avoid double-encoding issues when HttpClient combines base address + relative.
+            var requestUri = new Uri(_http.BaseAddress!, $"api/objects/{encodedPath}");
+
+            Console.WriteLine($"[StorageApiClient] Deleting object via: {requestUri}");
+
+            var response = await _http.DeleteAsync(requestUri);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to delete storage object. StatusCode={response.StatusCode}, Body={body}");
+            }
         }
     }
 }

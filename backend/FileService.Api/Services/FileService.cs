@@ -156,6 +156,7 @@ namespace FileService.Api.Services
         {
             try
             {
+                Console.WriteLine($"[FileService] Deleting S3 key: {file.StorageKey}");
                 await _storageApiClient.DeleteFileAsync(file.StorageKey);
             }
             catch
