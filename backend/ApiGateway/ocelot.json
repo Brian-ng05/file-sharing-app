@@ -13,9 +13,9 @@
             ]
         },
         {
-            "UpstreamPathTemplate": "/files/{everything}",
+            "UpstreamPathTemplate": "/files/{code}",
             "UpstreamHttpMethod": [ "GET", "DELETE" ],
-            "DownstreamPathTemplate": "/files/{everything}",
+            "DownstreamPathTemplate": "/files/{code}",
             "DownstreamScheme": "http",
             "DownstreamHostAndPorts": [
                 {
@@ -51,10 +51,10 @@
             ]
         },
         {
-            "UpstreamPathTemplate": "/api/objects/{storageKey}/signed-url",
+            "UpstreamPathTemplate": "/api/objects/signed-url",
             "UpstreamHttpMethod": [ "GET" ],
 
-            "DownstreamPathTemplate": "/api/objects/{storageKey}/signed-url",
+            "DownstreamPathTemplate": "/api/objects/signed-url",
             "DownstreamScheme": "http",
             "DownstreamHostAndPorts": [
                 {

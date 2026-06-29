@@ -55,18 +55,28 @@ public class S3StorageService : IStorageService
 
     public async Task DeleteAsync(string storageKey)
     {
+        Console.WriteLine($"[StorageService] DeleteAsync called with key: {storageKey}");
+
         try
         {
-            await _s3.DeleteObjectAsync(
+            await _s3.GetObjectMetadataAsync(
                 _awsSettings.BucketName,
                 storageKey);
+            Console.WriteLine($"[StorageService] File found in S3: {storageKey}");
         }
-        catch (AmazonS3Exception ex)
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            throw new Exception(
-                $"Unable to delete object {storageKey}.",
-                ex);
+            Console.WriteLine(
+                $"[StorageService] File not found in S3: {storageKey}, S3Message={ex.Message}");
+            return;
         }
+
+        var deleteResponse = await _s3.DeleteObjectAsync(
+            _awsSettings.BucketName,
+            storageKey);
+
+        Console.WriteLine(
+            $"[StorageService] Delete response for {storageKey}: {deleteResponse.HttpStatusCode}");
     }
 
     public Task<string> GenerateSignedUrlAsync(string storageKey)
