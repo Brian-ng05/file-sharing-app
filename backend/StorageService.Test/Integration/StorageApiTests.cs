@@ -72,7 +72,8 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         fakeService!.AddObject(testKey);
 
         // Act
-        var response = await client.GetAsync($"/api/objects/signed-url/{testKey}");
+        var response = await client.GetAsync(
+            $"/api/objects/signed-url?storageKey={Uri.EscapeDataString(testKey)}");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -89,7 +90,8 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         var testKey = "uploads/2026/06/28/missing.pdf";
 
         // Act
-        var response = await client.GetAsync($"/api/objects/signed-url/{testKey}");
+        var response = await client.GetAsync(
+            $"/api/objects/signed-url?storageKey={Uri.EscapeDataString(testKey)}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -102,7 +104,7 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/api/objects/signed-url/");
+        var response = await client.GetAsync("/api/objects/signed-url?storageKey=");
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -139,7 +141,8 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         deleteResponse.EnsureSuccessStatusCode();
 
         // Act 2 - Try to get signed URL
-        var signedUrlResponse = await client.GetAsync($"/api/objects/signed-url/{testKey}");
+        var signedUrlResponse = await client.GetAsync(
+            $"/api/objects/signed-url?storageKey={Uri.EscapeDataString(testKey)}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, signedUrlResponse.StatusCode);

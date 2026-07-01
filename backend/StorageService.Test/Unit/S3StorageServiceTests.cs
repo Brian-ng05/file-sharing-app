@@ -1,8 +1,10 @@
 using Amazon.S3;
 using Amazon.S3.Model;
+using Microsoft.AspNetCore.Http;
 using Moq;
 using StorageService.Api.Models;
 using StorageService.Api.Services;
+using System.Net;
 using Xunit;
 
 namespace StorageService.Test.Unit;
@@ -63,6 +65,9 @@ public class S3StorageServiceTests
         // Arrange
         var testKey = "uploads/2026/06/27/delete-me.pdf";
         _mockS3
+            .Setup(x => x.GetObjectMetadataAsync(It.IsAny<string>(), It.IsAny<string>(), default))
+            .ReturnsAsync(new GetObjectMetadataResponse());
+        _mockS3
             .Setup(x => x.DeleteObjectAsync(It.IsAny<string>(), It.IsAny<string>(), default))
             .ReturnsAsync(new DeleteObjectResponse());
 
@@ -71,6 +76,75 @@ public class S3StorageServiceTests
 
         // Assert
         _mockS3.Verify(x => x.DeleteObjectAsync(_awsSettings.BucketName, testKey, default), Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadAsync_WithForbiddenS3Error_ThrowsStorageOperationExceptionWithBadGateway()
+    {
+        // Arrange
+        var formFile = CreateFormFile("upload.txt", "hello world", "text/plain");
+        _mockS3
+            .Setup(x => x.PutObjectAsync(It.IsAny<PutObjectRequest>(), default))
+            .ThrowsAsync(new AmazonS3Exception("Access denied")
+            {
+                StatusCode = HttpStatusCode.Forbidden,
+                ErrorCode = "AccessDenied"
+            });
+
+        // Act
+        var exception = await Assert.ThrowsAsync<StorageOperationException>(
+            () => _sut.UploadAsync(formFile));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadGateway, exception.StatusCode);
+        Assert.Contains("Storage provider rejected the request", exception.Message);
+    }
+
+    [Fact]
+    public async Task GenerateSignedUrlAsync_WithTemporaryS3Error_ThrowsStorageOperationExceptionWithServiceUnavailable()
+    {
+        // Arrange
+        var testKey = "uploads/2026/06/27/temporary-error.pdf";
+        _mockS3
+            .Setup(x => x.GetObjectMetadataAsync(It.IsAny<string>(), It.IsAny<string>(), default))
+            .ThrowsAsync(new AmazonS3Exception("Slow down")
+            {
+                StatusCode = HttpStatusCode.ServiceUnavailable,
+                ErrorCode = "SlowDown"
+            });
+
+        // Act
+        var exception = await Assert.ThrowsAsync<StorageOperationException>(
+            () => _sut.GenerateSignedUrlAsync(testKey));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, exception.StatusCode);
+        Assert.Contains("Storage provider is temporarily unavailable", exception.Message);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WithForbiddenS3Error_ThrowsStorageOperationExceptionWithBadGateway()
+    {
+        // Arrange
+        var testKey = "uploads/2026/06/27/delete-forbidden.pdf";
+        _mockS3
+            .Setup(x => x.GetObjectMetadataAsync(It.IsAny<string>(), It.IsAny<string>(), default))
+            .ReturnsAsync(new GetObjectMetadataResponse());
+        _mockS3
+            .Setup(x => x.DeleteObjectAsync(It.IsAny<string>(), It.IsAny<string>(), default))
+            .ThrowsAsync(new AmazonS3Exception("Access denied")
+            {
+                StatusCode = HttpStatusCode.Forbidden,
+                ErrorCode = "AccessDenied"
+            });
+
+        // Act
+        var exception = await Assert.ThrowsAsync<StorageOperationException>(
+            () => _sut.DeleteAsync(testKey));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadGateway, exception.StatusCode);
+        Assert.Contains("Storage provider rejected the request", exception.Message);
     }
 
     [Fact]
@@ -86,5 +160,18 @@ public class S3StorageServiceTests
         var exception = await Assert.ThrowsAsync<FileNotFoundException>(() => _sut.GenerateSignedUrlAsync(testKey));
         Assert.Contains(testKey, exception.Message);
         _mockS3.Verify(x => x.GetObjectMetadataAsync(_awsSettings.BucketName, testKey, default), Times.Once);
+    }
+
+    private static IFormFile CreateFormFile(
+        string fileName,
+        string content,
+        string contentType)
+    {
+        var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+        return new FormFile(stream, 0, stream.Length, "file", fileName)
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = contentType
+        };
     }
 }
