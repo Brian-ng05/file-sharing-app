@@ -38,10 +38,10 @@
             ]
         },
         {
-            "UpstreamPathTemplate": "/api/objects/{storageKey}",
+            "UpstreamPathTemplate": "/api/objects/{everything}",
             "UpstreamHttpMethod": [ "DELETE" ],
 
-            "DownstreamPathTemplate": "/api/objects/{storageKey}",
+            "DownstreamPathTemplate": "/api/objects/{everything}",
             "DownstreamScheme": "http",
             "DownstreamHostAndPorts": [
                 {

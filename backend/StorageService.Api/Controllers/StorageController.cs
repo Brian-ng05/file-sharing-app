@@ -36,12 +36,19 @@ public class StorageController : ControllerBase
                 "File size exceeds 10 MB limit");
         }
 
-        var response = await _storageService.UploadAsync(request.File);
-
-        return Ok(new UploadResponse
+        try
         {
-            StorageKey = response.StorageKey
-        });
+            var response = await _storageService.UploadAsync(request.File);
+
+            return Ok(new UploadResponse
+            {
+                StorageKey = response.StorageKey
+            });
+        }
+        catch (StorageOperationException ex)
+        {
+            return StorageProblem(ex);
+        }
     }
 
     [HttpGet("signed-url")]
@@ -65,6 +72,10 @@ public class StorageController : ControllerBase
         {
             return NotFound();
         }
+        catch (StorageOperationException ex)
+        {
+            return StorageProblem(ex);
+        }
     }
 
     [HttpDelete("{*storageKey}")]
@@ -79,25 +90,23 @@ public class StorageController : ControllerBase
         if (string.IsNullOrWhiteSpace(storageKey))
             return BadRequest("StorageKey is required.");
 
-        await _storageService.DeleteAsync(storageKey);
+        try
+        {
+            await _storageService.DeleteAsync(storageKey);
 
-        return NoContent();
+            return NoContent();
+        }
+        catch (StorageOperationException ex)
+        {
+            return StorageProblem(ex);
+        }
     }
 
-    // Alternate delete endpoint that accepts storageKey via query string.
-    // Use this when the storage key contains characters that make route-based
-    // deletion unreliable (for example unencoded slashes).
-    [HttpDelete]
-    public async Task<IActionResult> DeleteObjectByQuery([FromQuery] string storageKey)
+    private ObjectResult StorageProblem(StorageOperationException ex)
     {
-        _logger.LogInformation("[StorageController] DeleteObjectByQuery called.");
-        _logger.LogDebug("Query storageKey: '{StorageKey}'", storageKey);
-
-        if (string.IsNullOrWhiteSpace(storageKey))
-            return BadRequest("StorageKey is required.");
-
-        await _storageService.DeleteAsync(storageKey);
-
-        return NoContent();
+        return Problem(
+            title: "Storage request failed",
+            detail: ex.Message,
+            statusCode: (int)ex.StatusCode);
     }
 }

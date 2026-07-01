@@ -48,9 +48,7 @@ public class S3StorageService : IStorageService
         }
         catch (AmazonS3Exception ex)
         {
-            throw new Exception(
-                $"Unable to upload file to storage. {ex.Message}",
-                ex);
+            throw MapAwsException(ex, "Failed to upload file.");
         }
     }
 
@@ -65,19 +63,30 @@ public class S3StorageService : IStorageService
                 storageKey);
             Console.WriteLine($"[StorageService] File found in S3: {storageKey}");
         }
-        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        catch (AmazonS3Exception ex) when (IsNotFound(ex))
         {
             Console.WriteLine(
                 $"[StorageService] File not found in S3: {storageKey}, S3Message={ex.Message}");
             return;
         }
+        catch (AmazonS3Exception ex)
+        {
+            throw MapAwsException(ex, "Failed to delete file.");
+        }
 
-        var deleteResponse = await _s3.DeleteObjectAsync(
-            _awsSettings.BucketName,
-            storageKey);
+        try
+        {
+            var deleteResponse = await _s3.DeleteObjectAsync(
+                _awsSettings.BucketName,
+                storageKey);
 
-        Console.WriteLine(
-            $"[StorageService] Delete response for {storageKey}: {deleteResponse.HttpStatusCode}");
+            Console.WriteLine(
+                $"[StorageService] Delete response for {storageKey}: {deleteResponse.HttpStatusCode}");
+        }
+        catch (AmazonS3Exception ex)
+        {
+            throw MapAwsException(ex, "Failed to delete file.");
+        }
     }
 
     public async Task<bool> ExistsAsync(string storageKey)
@@ -103,21 +112,64 @@ public class S3StorageService : IStorageService
             throw new ArgumentException("StorageKey cannot be empty", nameof(storageKey));
         }
 
-        var exists = await ExistsAsync(storageKey);
-        if (!exists)
+        try
         {
-            throw new FileNotFoundException($"Object with key {storageKey} not found", storageKey);
+            var exists = await ExistsAsync(storageKey);
+            if (!exists)
+            {
+                throw new FileNotFoundException($"Object with key {storageKey} not found", storageKey);
+            }
+
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = _awsSettings.BucketName,
+                Key = storageKey,
+                Expires = DateTime.UtcNow.AddMinutes(15)
+            };
+
+            var url = _s3.GetPreSignedURL(request);
+
+            return url;
+        }
+        catch (AmazonS3Exception ex)
+        {
+            throw MapAwsException(ex, "Failed to generate signed URL.");
+        }
+    }
+
+    private static bool IsNotFound(AmazonS3Exception ex)
+    {
+        return ex.StatusCode == HttpStatusCode.NotFound ||
+               ex.ErrorCode == "NoSuchKey" ||
+               ex.ErrorCode == "NotFound";
+    }
+
+    private static StorageOperationException MapAwsException(
+        AmazonS3Exception ex,
+        string operationMessage)
+    {
+        if (IsTransientStorageError(ex))
+        {
+            return new StorageOperationException(
+                HttpStatusCode.ServiceUnavailable,
+                $"{operationMessage} Storage provider is temporarily unavailable.",
+                ex);
         }
 
-        var request = new GetPreSignedUrlRequest
-        {
-            BucketName = _awsSettings.BucketName,
-            Key = storageKey,
-            Expires = DateTime.UtcNow.AddMinutes(15)
-        };
+        return new StorageOperationException(
+            HttpStatusCode.BadGateway,
+            $"{operationMessage} Storage provider rejected the request.",
+            ex);
+    }
 
-        var url = _s3.GetPreSignedURL(request);
-
-        return url;
+    private static bool IsTransientStorageError(AmazonS3Exception ex)
+    {
+        return ex.StatusCode == HttpStatusCode.RequestTimeout ||
+               ex.StatusCode == HttpStatusCode.BadGateway ||
+               ex.StatusCode == HttpStatusCode.ServiceUnavailable ||
+               ex.StatusCode == HttpStatusCode.GatewayTimeout ||
+               ex.ErrorCode == "RequestTimeout" ||
+               ex.ErrorCode == "SlowDown" ||
+               ex.ErrorCode == "ServiceUnavailable";
     }
 }
