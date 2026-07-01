@@ -58,19 +58,14 @@ public class S3StorageService : IStorageService
     {
         Console.WriteLine($"[StorageService] DeleteAsync called with key: {storageKey}");
 
-        try
+        var exists = await ExistsAsync(storageKey);
+        if (!exists)
         {
-            await _s3.GetObjectMetadataAsync(
-                _awsSettings.BucketName,
-                storageKey);
-            Console.WriteLine($"[StorageService] File found in S3: {storageKey}");
+            Console.WriteLine($"[StorageService] File not found in S3: {storageKey}");
+            throw new FileNotFoundException($"Object with key {storageKey} not found", storageKey);
         }
-        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            Console.WriteLine(
-                $"[StorageService] File not found in S3: {storageKey}, S3Message={ex.Message}");
-            return;
-        }
+
+        Console.WriteLine($"[StorageService] File found in S3: {storageKey}");
 
         var deleteResponse = await _s3.DeleteObjectAsync(
             _awsSettings.BucketName,

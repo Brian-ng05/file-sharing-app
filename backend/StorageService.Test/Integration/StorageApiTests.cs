@@ -72,7 +72,7 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         fakeService!.AddObject(testKey);
 
         // Act
-        var response = await client.GetAsync($"/api/objects/signed-url/{testKey}");
+        var response = await client.GetAsync($"/api/objects/signed-url?storageKey={Uri.EscapeDataString(testKey)}");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -89,10 +89,15 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         var testKey = "uploads/2026/06/28/missing.pdf";
 
         // Act
-        var response = await client.GetAsync($"/api/objects/signed-url/{testKey}");
+        var response = await client.GetAsync($"/api/objects/signed-url?storageKey={Uri.EscapeDataString(testKey)}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ObjectResponse>();
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.Equal("Object does not exist in storage.", result.Message);
+        Assert.Equal(testKey, result.StorageKey);
     }
 
     [Fact]
@@ -102,15 +107,20 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/api/objects/signed-url/");
+        var response = await client.GetAsync("/api/objects/signed-url?storageKey=");
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ObjectResponse>();
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.Equal("StorageKey is required", result.Message);
+        // StorageKey is empty string when passed as empty query string
     }
 
     // Delete tests
     [Fact]
-    public async Task Delete_WithValidKey_ReturnsNoContent()
+    public async Task Delete_WithValidKey_ReturnsOk()
     {
         // Arrange
         var client = _factory.CreateClient();
@@ -122,7 +132,48 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await client.DeleteAsync($"/api/objects/{testKey}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ObjectResponse>();
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.Equal("Object deleted successfully.", result.Message);
+        Assert.Equal(testKey, result.StorageKey);
+    }
+
+    [Fact]
+    public async Task Delete_WithMissingKey_ReturnsNotFound()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var testKey = "uploads/2026/06/28/missing.pdf";
+
+        // Act
+        var response = await client.DeleteAsync($"/api/objects/{testKey}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ObjectResponse>();
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.Equal("Object does not exist in storage.", result.Message);
+        Assert.Equal(testKey, result.StorageKey);
+    }
+
+    [Fact]
+    public async Task Delete_WithEmptyStorageKey_ReturnsBadRequest()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        // Act
+        var response = await client.DeleteAsync("/api/objects/");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ObjectResponse>();
+        Assert.NotNull(result);
+        Assert.False(result.Success);
+        Assert.Equal("StorageKey is required.", result.Message);
     }
 
     [Fact]
@@ -139,7 +190,7 @@ public class StorageApiTests : IClassFixture<WebApplicationFactory<Program>>
         deleteResponse.EnsureSuccessStatusCode();
 
         // Act 2 - Try to get signed URL
-        var signedUrlResponse = await client.GetAsync($"/api/objects/signed-url/{testKey}");
+        var signedUrlResponse = await client.GetAsync($"/api/objects/signed-url?storageKey={Uri.EscapeDataString(testKey)}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, signedUrlResponse.StatusCode);

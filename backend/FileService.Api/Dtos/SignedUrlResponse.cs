@@ -1,4 +1,4 @@
-﻿namespace FileService.Api.Dtos;
+namespace FileService.Api.Dtos;
 
 public class SignedUrlResponse
 {

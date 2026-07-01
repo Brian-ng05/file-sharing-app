@@ -45,11 +45,16 @@ public class StorageController : ControllerBase
     }
 
     [HttpGet("signed-url")]
-    public async Task<IActionResult> GetSignedUrl([FromQuery] string storageKey)
+    public async Task<IActionResult> GetSignedUrl([FromQuery] string? storageKey)
     {
         if (string.IsNullOrWhiteSpace(storageKey))
         {
-            return BadRequest("StorageKey is required");
+            return BadRequest(new ObjectResponse
+            {
+                Success = false,
+                Message = "StorageKey is required",
+                StorageKey = storageKey
+            });
         }
 
         try
@@ -63,41 +68,45 @@ public class StorageController : ControllerBase
         }
         catch (FileNotFoundException)
         {
-            return NotFound();
+            return NotFound(new ObjectResponse
+            {
+                Success = false,
+                Message = "Object does not exist in storage.",
+                StorageKey = storageKey
+            });
         }
     }
 
     [HttpDelete("{*storageKey}")]
-    public async Task<IActionResult> DeleteObject([FromRoute] string storageKey)
+    public async Task<IActionResult> DeleteObject([FromRoute] string? storageKey)
     {
-        // Structured diagnostic logging to catch any encoding / routing mismatch
-        _logger.LogInformation("[StorageController] DeleteObject called.");
-        _logger.LogDebug("Route storageKey: '{StorageKey}'", storageKey);
-        _logger.LogDebug("Request.Path: '{RequestPath}'", Request.Path);
-        _logger.LogDebug("Request.QueryString: '{QueryString}'", Request.QueryString);
-
         if (string.IsNullOrWhiteSpace(storageKey))
-            return BadRequest("StorageKey is required.");
+            return BadRequest(new ObjectResponse
+            {
+                Success = false,
+                Message = "StorageKey is required.",
+                StorageKey = storageKey
+            });
 
-        await _storageService.DeleteAsync(storageKey);
+        try
+        {
+            await _storageService.DeleteAsync(storageKey);
 
-        return NoContent();
-    }
-
-    // Alternate delete endpoint that accepts storageKey via query string.
-    // Use this when the storage key contains characters that make route-based
-    // deletion unreliable (for example unencoded slashes).
-    [HttpDelete]
-    public async Task<IActionResult> DeleteObjectByQuery([FromQuery] string storageKey)
-    {
-        _logger.LogInformation("[StorageController] DeleteObjectByQuery called.");
-        _logger.LogDebug("Query storageKey: '{StorageKey}'", storageKey);
-
-        if (string.IsNullOrWhiteSpace(storageKey))
-            return BadRequest("StorageKey is required.");
-
-        await _storageService.DeleteAsync(storageKey);
-
-        return NoContent();
+            return Ok(new ObjectResponse
+            {
+                Success = true,
+                Message = "Object deleted successfully.",
+                StorageKey = storageKey
+            });
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound(new ObjectResponse
+            {
+                Success = false,
+                Message = "Object does not exist in storage.",
+                StorageKey = storageKey
+            });
+        }
     }
 }

@@ -15,6 +15,10 @@ public class FakeStorageService : IStorageService
 
     public Task DeleteAsync(string storageKey)
     {
+        if (!_objects.ContainsKey(storageKey) || !_objects[storageKey])
+        {
+            throw new FileNotFoundException($"Object not found: {storageKey}", storageKey);
+        }
         _objects[storageKey] = false;
         return Task.CompletedTask;
     }
