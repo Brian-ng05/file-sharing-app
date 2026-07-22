@@ -15,7 +15,7 @@ namespace FileService.Api
 
             builder.Services.AddDbContext<ApplicationDbContext>(
                 options =>
-                    options.UseSqlServer(
+                    options.UseNpgsql(
                         builder.Configuration
                             .GetConnectionString("Default")));
 
