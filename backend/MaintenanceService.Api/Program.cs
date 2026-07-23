@@ -1,32 +1,38 @@
+using MaintenanceService.Api.BackgroundServices;
+using MaintenanceService.Api.Clients;
+using MaintenanceService.Api.Services;
 
-namespace MaintenanceService.Api
-{
-    public class Program
+var builder = WebApplication.CreateBuilder(args);
+
+// Controllers
+builder.Services.AddControllers();
+
+// OpenAPI / Swagger
+builder.Services.AddOpenApi();
+
+// HttpClient -> FileService
+builder.Services.AddHttpClient<FileServiceClient>(
+    client =>
     {
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
+        client.BaseAddress = new Uri(
+            builder.Configuration["Services:GatewayUrl"]!);
+    });
 
-            // Add services to the container.
+// Services
+builder.Services.AddScoped<ICleanupService, CleanupService>();
 
-            builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            builder.Services.AddOpenApi();
+// Background Job
+builder.Services.AddHostedService<CleanupBackgroundService>();
 
-            var app = builder.Build();
+var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.MapOpenApi();
-            }
-
-            app.UseAuthorization();
-
-
-            app.MapControllers();
-
-            app.Run();
-        }
-    }
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
 }
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();

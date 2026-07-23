@@ -167,5 +167,10 @@ namespace FileService.Api.Services
             await _repo.DeleteAsync(file);
             await _repo.SaveChangesAsync();
         }
+
+        public async Task<List<FileMetadata>> GetExpiredFilesAsync()
+        {
+            return await _repo.GetExpiredFilesAsync();
+        }
     }
 }

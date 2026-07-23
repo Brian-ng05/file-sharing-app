@@ -11,5 +11,7 @@ namespace FileService.Api.Repository
         Task DeleteAsync(FileMetadata file);
 
         Task SaveChangesAsync();
+
+        Task<List<FileMetadata>> GetExpiredFilesAsync();
     }
 }
