@@ -34,5 +34,14 @@ namespace FileService.Api.Repository
         {
             await _db.SaveChangesAsync();
         }
+
+        public async Task<List<FileMetadata>> GetExpiredFilesAsync()
+        {
+            return await _db.Files
+                .Where(f =>
+                    f.ExpiresAt.HasValue &&
+                    f.ExpiresAt.Value <= DateTime.UtcNow)
+                .ToListAsync();
+        }
     }
 }

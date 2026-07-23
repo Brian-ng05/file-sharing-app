@@ -1,4 +1,5 @@
 using FileService.Api.Dtos.UploadFileRequest;
+using FileService.Api.Dtos;
 using FileService.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -39,6 +40,19 @@ namespace FileService.Api.Controllers
             await _service.DeleteAsync(code);
 
             return NoContent();
+        }
+
+        [HttpGet("expired")]
+        public async Task<ActionResult<List<ExpiredFileDto>>> GetExpiredFiles()
+        {
+            var files = await _service.GetExpiredFilesAsync();
+
+            var response = files.Select(f => new ExpiredFileDto
+            {
+                Code = f.Code
+            });
+
+            return Ok(response);
         }
     }
 }
