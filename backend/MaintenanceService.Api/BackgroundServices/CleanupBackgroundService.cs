@@ -47,7 +47,7 @@ public class CleanupBackgroundService : BackgroundService
             try
             {
                 await Task.Delay(
-                    TimeSpan.FromMinutes(15),
+                    TimeSpan.FromMinutes(2),
                     stoppingToken);
             }
             catch (OperationCanceledException)

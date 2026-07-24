@@ -23,4 +23,6 @@ public class FileMetadata
     public DateTime? ExpiresAt { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    public string? PasswordHash { get; set; }
 }
