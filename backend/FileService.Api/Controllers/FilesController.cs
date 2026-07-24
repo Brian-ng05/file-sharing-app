@@ -46,11 +46,13 @@ namespace FileService.Api.Controllers
         }
 
         [HttpGet("{code}")]
-        public async Task<IActionResult> Download(string code)
+        public async Task<IActionResult> Download(
+            string code,
+            [FromQuery] string? password = null)
         {
             try
             {
-                var signedUrl = await _service.DownloadAsync(code);
+                var signedUrl = await _service.DownloadAsync(code, password);
 
                 return Redirect(signedUrl);
             }
@@ -119,6 +121,67 @@ namespace FileService.Api.Controllers
             }
         }
 
+        [HttpGet("{code}/info")]
+        public async Task<IActionResult> GetInfo(string code)
+        {
+            try
+            {
+                var file = await _service.GetMetadataAsync(code);
+
+                if (file is null)
+                    return NotFound(new ProblemDetails
+                    {
+                        Title = "Not Found",
+                        Detail = "File not found.",
+                        Status = 404
+                    });
+
+                return Ok(new FileMetadataResponse
+                {
+                    Code = file.Code,
+                    OriginalFilename = file.OriginalFilename,
+                    MimeType = file.MimeType,
+                    SizeBytes = file.SizeBytes,
+                    RequiresPassword = file.PasswordHash is not null,
+                    ExpiresAt = file.ExpiresAt,
+                    CreatedAt = file.CreatedAt
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unhandled error retrieving file info for {Code}.", code);
+
+                return Problem(
+                    title: "An unexpected error occurred.",
+                    statusCode: 500);
+            }
+        }
+
+        [HttpPost("{code}/verify-password")]
+        public async Task<IActionResult> VerifyPassword(
+            string code,
+            [FromBody] VerifyPasswordRequest request)
+        {
+            try
+            {
+                var valid = await _service.VerifyPasswordOnlyAsync(code, request.Password);
+
+                return Ok(new { valid });
+            }
+            catch (Exception ex) when (IsWellKnownMessage(ex.Message))
+            {
+                return MapExceptionToResult(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unhandled error during password verification for {Code}.", code);
+
+                return Problem(
+                    title: "An unexpected error occurred.",
+                    statusCode: 500);
+            }
+        }
+
         private static bool IsWellKnownMessage(string message)
         {
             return message switch
@@ -133,7 +196,9 @@ namespace FileService.Api.Controllers
                 "File expired." or
                 "Download limit reached." or
                 "Failed to generate signed URL." or
-                "Storage service returned an empty signed url response."
+                "Storage service returned an empty signed url response." or
+                "Password is required." or
+                "Invalid password."
                     => true,
                 string msg when msg.StartsWith("Failed to delete storage object.")
                     => true,
@@ -178,6 +243,15 @@ namespace FileService.Api.Controllers
                         Title = "Gone",
                         Detail = message,
                         Status = 410
+                    }),
+
+                "Password is required." or
+                "Invalid password."
+                    => Unauthorized(new ProblemDetails
+                    {
+                        Title = "Unauthorized",
+                        Detail = message,
+                        Status = 401
                     }),
 
                 "Storage upload failed." or

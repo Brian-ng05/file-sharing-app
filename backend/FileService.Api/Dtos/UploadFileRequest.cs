@@ -7,4 +7,6 @@ public class UploadFileRequest
     public int? MaxDownloads { get; set; }
 
     public DateTime? ExpiresAt { get; set; }
+
+    public string? Password { get; set; }
 }
