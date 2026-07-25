@@ -56,9 +56,9 @@ export const FileInfo: React.FC<FileInfoProps> = ({ metadata }) => {
 
   return (
     <div className="portal-meta" aria-label="File details">
-      {metadata.isEncrypted && (
+      {metadata.requiresPassword && (
         <>
-          <span className="portal-meta-badge">Encrypted</span>
+          <span className="portal-meta-badge">Password Required</span>
           <span className="portal-meta-sep">·</span>
         </>
       )}

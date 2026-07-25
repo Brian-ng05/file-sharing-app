@@ -47,6 +47,7 @@ const Navbar: React.FC = () => {
             onClick={handleToggleMock}
             title="Toggle between Mock and Real API modes"
           >
+            <span className={`app-header-mode-dot ${mockActive ? "app-header-mode-dot--mock" : "app-header-mode-dot--real"}`} />
             {mockActive ? "Mock Mode" : "Real API"}
           </button>
 
@@ -88,6 +89,7 @@ const Navbar: React.FC = () => {
             </NavLink>
             <div className="app-header-drawer-divider" />
             <button type="button" className="app-header-drawer-mock" onClick={handleToggleMock}>
+              <span className={`app-header-mode-dot ${mockActive ? "app-header-mode-dot--mock" : "app-header-mode-dot--real"}`} />
               {mockActive ? "Mock Mode" : "Real API"}
             </button>
           </nav>

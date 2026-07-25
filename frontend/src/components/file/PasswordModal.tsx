@@ -1,13 +1,13 @@
 import * as React from "react";
 import "./PasswordModal.css";
-import "./DownloadButton.css";
 
 interface PasswordModalProps {
   onSubmit: (password: string) => void;
   errorMessage: string | null;
+  onCancel?: () => void;
 }
 
-export const PasswordModal: React.FC<PasswordModalProps> = ({ onSubmit, errorMessage }) => {
+export const PasswordModal: React.FC<PasswordModalProps> = ({ onSubmit, errorMessage, onCancel }) => {
   const [password, setPassword] = React.useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -28,7 +28,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onSubmit, errorMes
         </div>
         <h2 className="portal-unlock-title">Password required</h2>
         <p className="portal-unlock-desc">
-          This file is encrypted. Enter the password to preview and download.
+          This file is password protected. Enter the password to preview and download.
         </p>
 
         <form onSubmit={handleSubmit} className="portal-unlock-form">
@@ -45,6 +45,12 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onSubmit, errorMes
           <button type="submit" className="portal-download" disabled={!password.trim()}>
             Unlock file
           </button>
+
+          {onCancel && (
+            <button type="button" className="portal-unlock-back" onClick={onCancel}>
+              Go back
+            </button>
+          )}
         </form>
       </div>
     </div>
