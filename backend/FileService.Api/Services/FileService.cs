@@ -8,7 +8,7 @@ namespace FileService.Api.Services
     public class FileService : IFileService
     {
         private readonly IFileRepository _repo;
-        private readonly StorageApiClient _storageApiClient;
+        private readonly IStorageApiClient _storageApiClient;
 
         private const long MAX_SIZE = 10 * 1024 * 1024;
 
@@ -23,7 +23,7 @@ namespace FileService.Api.Services
 
         public FileService(
             IFileRepository repo,
-            StorageApiClient storageApiClient)
+            IStorageApiClient storageApiClient)
         {
             _repo = repo;
             _storageApiClient = storageApiClient;

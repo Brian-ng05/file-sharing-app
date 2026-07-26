@@ -21,7 +21,7 @@ namespace FileService.Api
 
             var gatewayUrl = builder.Configuration["Services:GatewayUrl"]!;
 
-            builder.Services.AddHttpClient<StorageApiClient>(c =>
+            builder.Services.AddHttpClient<IStorageApiClient, StorageApiClient>(c =>
                 c.BaseAddress = new Uri(gatewayUrl));
 
             builder.Services.AddScoped<IFileRepository, FileRepository>();

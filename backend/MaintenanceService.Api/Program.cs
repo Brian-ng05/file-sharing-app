@@ -11,7 +11,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 // HttpClient -> FileService
-builder.Services.AddHttpClient<FileServiceClient>(
+builder.Services.AddHttpClient<IFileServiceClient, FileServiceClient>(
     client =>
     {
         client.BaseAddress = new Uri(
