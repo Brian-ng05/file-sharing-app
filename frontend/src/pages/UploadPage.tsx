@@ -30,9 +30,13 @@ const UploadPage: React.FC = () => {
   const [expiryValue, setExpiryValue] = React.useState<string>("7");
   const [expiryUnit, setExpiryUnit] = React.useState<"days" | "hours" | "minutes">("days");
   const [downloadLimit, setDownloadLimit] = React.useState<string>("");
+  const [password, setPassword] = React.useState<string>("");
   const [shareCode, setShareCode] = React.useState<string>("");
+  const [uploadProgress, setUploadProgress] = React.useState<number>(0);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+
+  const isUploadingRef = React.useRef(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -76,7 +80,7 @@ const UploadPage: React.FC = () => {
   };
 
   const handleShare = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || isUploadingRef.current) return;
 
     // Validation checks
     const numExpiryValue = Number(expiryValue);
@@ -91,8 +95,10 @@ const UploadPage: React.FC = () => {
       return;
     }
 
+    isUploadingRef.current = true;
     setState("uploading");
     setError(null);
+    setUploadProgress(0);
 
     try {
       // Calculate expiry hours
@@ -113,10 +119,11 @@ const UploadPage: React.FC = () => {
       const uploadOptions = {
         maxDownloads,
         expiryHours,
+        password: password.trim() || undefined,
       };
 
       const meta = await fileService.uploadFile(selectedFile, uploadOptions, (percent) => {
-        // Progress callback if needed
+        setUploadProgress(percent);
       });
 
       setShareCode(meta.code);
@@ -124,6 +131,8 @@ const UploadPage: React.FC = () => {
     } catch (err: any) {
       setError(err?.message || "Upload failed");
       setState("selected");
+    } finally {
+      isUploadingRef.current = false;
     }
   };
 
@@ -139,6 +148,8 @@ const UploadPage: React.FC = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
     setShareCode("");
+    setPassword("");
+    setUploadProgress(0);
     setError(null);
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -170,7 +181,7 @@ const UploadPage: React.FC = () => {
           <header className="upload-page-header">
             <h1 className="upload-page-title">Upload a file</h1>
             <p className="upload-page-subtitle">
-              Share securely with a link. Set expiry and download limits after selecting a file.
+              Share securely with a link. Set expiry, download limits, and optional password after selecting a file.
             </p>
           </header>
 
@@ -207,7 +218,7 @@ const UploadPage: React.FC = () => {
               Share settings
             </h2>
             <p className="upload-settings-desc">
-              Configure how long the link stays active and how many times it can be downloaded.
+              Configure how long the link stays active, download limits, and optional password protection.
             </p>
 
             <div className="upload-field">
@@ -253,10 +264,30 @@ const UploadPage: React.FC = () => {
               />
               <p className="upload-field-hint">Maximum number of times the file can be downloaded</p>
             </div>
+
+            <div className="upload-field">
+              <label htmlFor="upload-password" className="upload-field-label">
+                Password protection <span className="upload-label-optional">(optional)</span>
+              </label>
+              <input
+                id="upload-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="upload-field-input"
+                placeholder="Set a password to protect this link"
+                autoComplete="new-password"
+              />
+              <p className="upload-field-hint">Recipients will need this password to open the shared link.</p>
+            </div>
           </section>
 
           <div className="upload-actions">
-            <button onClick={handleShare} className="upload-btn-primary">
+            <button
+              onClick={handleShare}
+              className="upload-btn-primary"
+              disabled={isUploadingRef.current}
+            >
               Generate Share Link
             </button>
             <button onClick={handleReset} className="upload-btn-ghost">
@@ -266,7 +297,7 @@ const UploadPage: React.FC = () => {
         </div>
       )}
 
-      {/* Uploading */}
+      {/* Step 3 — uploading with progress */}
       {state === "uploading" && selectedFile && (
         <div className="upload-progress-panel">
           <div className="upload-file-card">
@@ -285,11 +316,25 @@ const UploadPage: React.FC = () => {
           </div>
 
           <div className="upload-progress-status">
-            <div className="upload-spinner" aria-hidden="true" />
-            <span>Generating share link…</span>
+            <span>Uploading…</span>
+          </div>
+
+          <div className="upload-progress-track">
+            <div className="upload-progress-bar">
+              <div
+                className="upload-progress-fill"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            <span className="upload-progress-text">{uploadProgress}%</span>
           </div>
 
           <div className="upload-progress-details">
+            {password && (
+              <p className="upload-progress-detail">
+                Password protection enabled
+              </p>
+            )}
             <p className="upload-progress-detail">
               Expiry: {expiryValue ? `${expiryValue} ${expiryUnit}` : "None"}
             </p>

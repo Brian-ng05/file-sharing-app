@@ -52,6 +52,56 @@
   word-break: break-word;
 }
 
+/* Share link section on review page */
+.portal-share-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.portal-share-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--portal-text-muted);
+}
+
+.portal-share-row {
+  display: flex;
+  gap: 8px;
+}
+
+.portal-share-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--portal-text);
+  background: var(--portal-bg);
+  border: 1px solid var(--portal-border);
+  border-radius: 6px;
+  cursor: text;
+}
+
+.portal-btn-copy {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--portal-text);
+  background: var(--portal-surface);
+  border: 1px solid var(--portal-border);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.portal-btn-copy:hover {
+  background: var(--portal-bg);
+  border-color: var(--portal-text-subtle);
+}
+
 @media (prefers-color-scheme: dark) {
   .portal-page {
     --portal-bg: #0d1117;

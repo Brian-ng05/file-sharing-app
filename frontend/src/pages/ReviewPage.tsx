@@ -2,6 +2,7 @@ import * as React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fileService } from "../services/file.service";
 import { FileMetadata } from "../types/file";
+import { isMockMode } from "../services/api";
 import { Loading } from "../components/common/Loading";
 import { ErrorMessage } from "../components/common/ErrorMessage";
 import { FilePreview } from "../components/file/FilePreview";
@@ -20,12 +21,25 @@ const ReviewPage: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
 
-  const [needsDecryption, setNeedsDecryption] = React.useState(false);
+  const [needsPassword, setNeedsPassword] = React.useState(false);
+  const [verifiedPassword, setVerifiedPassword] = React.useState<string | null>(null);
   const [modalError, setModalError] = React.useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = React.useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  const shareLink = React.useMemo(() => {
+    if (!code) return "";
+    return `${window.location.origin}/f/${code}`;
+  }, [code]);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareLink).then(() => {
+      showToast("Link copied to clipboard");
+    });
   };
 
   React.useEffect(() => {
@@ -38,13 +52,17 @@ const ReviewPage: React.FC = () => {
         const meta = await fileService.getFileMetadata(code);
         setMetadata(meta);
 
-        if (meta.isEncrypted) {
-          setNeedsDecryption(true);
-        } else {
+        // In mock mode, try to get cached blob for preview
+        if (isMockMode()) {
           const blob = fileService.getCachedBlob(code);
           if (blob) {
             setPreviewUrl(URL.createObjectURL(blob));
           }
+        }
+
+        // If server says password required, show password modal
+        if (meta.requiresPassword) {
+          setNeedsPassword(true);
         }
       } catch (err: any) {
         setError(err?.message || "File not found or has expired.");
@@ -68,25 +86,30 @@ const ReviewPage: React.FC = () => {
     if (!code) return;
     setModalError(null);
     try {
-      const decryptedBlob = await fileService.decryptCachedBlob(code, password);
-      setNeedsDecryption(false);
-      setPreviewUrl(URL.createObjectURL(decryptedBlob));
-      showToast("Decrypted successfully");
+      await fileService.verifyPassword(code, password);
+      setNeedsPassword(false);
+      setVerifiedPassword(password);
+      showToast("Password verified successfully");
     } catch (err: any) {
-      setModalError(err?.message || "Incorrect password or corrupted file.");
+      setModalError(err?.message || "Incorrect password.");
     }
   };
 
+  const handlePasswordCancel = () => {
+    navigate("/");
+  };
+
   const handleDownload = async () => {
-    if (!metadata || !code) return;
+    if (!metadata || !code || isDownloading) return;
+    setIsDownloading(true);
 
     try {
-      await fileService.downloadFile(code, metadata.originalFileName);
+      await fileService.downloadFile(code, metadata.originalFileName, verifiedPassword || undefined);
       showToast("Download started");
 
       setMetadata((prev) => {
         if (!prev) return null;
-        const newCount = prev.downloadCount + 1;
+        const newCount = (prev.downloadCount ?? 0) + 1;
 
         if (prev.maxDownloads !== undefined && newCount >= prev.maxDownloads) {
           setTimeout(() => {
@@ -102,6 +125,8 @@ const ReviewPage: React.FC = () => {
       });
     } catch (err: any) {
       showToast(err?.message || "Download failed.");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -119,18 +144,25 @@ const ReviewPage: React.FC = () => {
   };
 
   if (loading) {
-    return <Loading message="Retrieving file metadata..." />;
+    return <Loading message="Checking file availability…" />;
   }
 
   if (error || !metadata) {
-    return <ErrorMessage message={error || "The file you are trying to view is no longer available."} />;
+    return (
+      <ErrorMessage
+        message={error || "The file you are trying to view is no longer available."}
+        showUploadButton
+        showHistoryButton
+      />
+    );
   }
 
-  if (needsDecryption) {
+  if (needsPassword) {
     return (
       <PasswordModal
         onSubmit={handlePasswordSubmit}
         errorMessage={modalError}
+        onCancel={handlePasswordCancel}
       />
     );
   }
@@ -149,7 +181,28 @@ const ReviewPage: React.FC = () => {
         <div className="portal-details">
           <h1 className="portal-filename">{metadata.originalFileName}</h1>
           <FileInfo metadata={metadata} />
-          <DownloadButton onDownload={handleDownload} onDelete={handleDelete} />
+
+          <div className="portal-share-section">
+            <label className="portal-share-label">Share link</label>
+            <div className="portal-share-row">
+              <input
+                className="portal-share-input"
+                type="text"
+                readOnly
+                value={shareLink}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <button type="button" className="portal-btn-copy" onClick={handleCopyLink}>
+                Copy
+              </button>
+            </div>
+          </div>
+
+          <DownloadButton
+            onDownload={handleDownload}
+            onDelete={handleDelete}
+            isDownloading={isDownloading}
+          />
         </div>
       </div>
     </div>

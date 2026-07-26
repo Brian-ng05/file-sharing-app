@@ -1,7 +1,6 @@
 import { FileMetadata, UploadOptions } from "../types/file";
 import { API_BASE_URL, isMockMode } from "./api";
 import { historyService } from "./history.service";
-import { CryptoService } from "./crypto.service";
 
 // Helper for simulating api delays in mock mode
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -9,9 +8,8 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // Max file size allowed (10 MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10,485,760 bytes
 
-// Caches for file Blobs to prevent duplicate downloads and support E2EE decryption
+// Caches for file Blobs to prevent duplicate downloads (mock mode only)
 const blobCache = new Map<string, Blob>();
-const decryptedCache = new Map<string, Blob>();
 
 // Helper to convert base64 data URLs to Blobs in mock mode
 function dataURLtoBlob(dataurl: string): Blob {
@@ -26,16 +24,37 @@ function dataURLtoBlob(dataurl: string): Blob {
   return new Blob([u8arr], { type: mime });
 }
 
+/**
+ * Maps HTTP status codes to user-friendly error messages.
+ */
+function mapHttpError(status: number, defaultMsg?: string): string {
+  switch (status) {
+    case 400: return "Invalid request. Please check your input.";
+    case 401: return "Password is required or invalid password.";
+    case 404: return "File not found or has expired.";
+    case 410: return "This file has expired or is unavailable.";
+    case 413: return "File size exceeds the maximum limit of 10 MB.";
+    case 502:
+    case 503: return "Storage service is temporarily unavailable. Please try again later.";
+    default: return defaultMsg || `Request failed with status ${status}.`;
+  }
+}
+
 export const fileService = {
   /**
-   * Retrieves a cached Blob (decrypted or raw) if available
+   * Returns whether we are currently in mock mode.
+   */
+  isMockMode,
+
+  /**
+   * Retrieves a cached Blob if available (mock mode only).
    */
   getCachedBlob(code: string): Blob | undefined {
-    return decryptedCache.get(code) || blobCache.get(code);
+    return blobCache.get(code);
   },
 
   /**
-   * Uploads a file with options (max downloads, expiry time) and reports progress
+   * Uploads a file with options (max downloads, expiry time, password) and reports progress.
    */
   async uploadFile(
     file: File,
@@ -47,15 +66,8 @@ export const fileService = {
       throw new Error(`File size exceeds the maximum limit of 10 MB. Your file: ${(file.size / (1024 * 1024)).toFixed(2)} MB`);
     }
 
-    const isEncrypted = !!options?.password;
-    let finalFile: Blob = file;
-    let finalFileName = file.name;
-
-    if (isEncrypted && options?.password) {
-      // Encrypt the file binary on the client side
-      finalFile = await CryptoService.encryptFile(file, options.password);
-      finalFileName = "[E2EE]" + file.name;
-    }
+    const password = options?.password?.trim() || undefined;
+    const requiresPassword = !!password;
 
     if (isMockMode()) {
       // Simulate progressive incremental upload reporting in Mock Mode
@@ -76,11 +88,11 @@ export const fileService = {
 
       // Read file content as base64 if it's small enough (< 2MB) to save in localStorage mock
       let contentDataUrl = "";
-      if (finalFile.size <= 2 * 1024 * 1024) {
+      if (file.size <= 2 * 1024 * 1024) {
         contentDataUrl = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(finalFile);
+          reader.readAsDataURL(file);
         });
       } else {
         // For larger files, create a mock placeholder to avoid local storage quota limits
@@ -93,19 +105,22 @@ export const fileService = {
 
       const metadata: FileMetadata = {
         code,
-        originalFileName: file.name, // Keep it clean for uploader's history
+        originalFileName: file.name,
         mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size, // Original size
+        sizeBytes: file.size,
+        requiresPassword,
         maxDownloads: options?.maxDownloads || undefined,
         downloadCount: 0,
         expiresAt,
         createdAt: new Date().toISOString(),
-        isEncrypted,
       };
 
       // Store in LocalStorage mock registry
       localStorage.setItem(`mock_file_meta_${code}`, JSON.stringify(metadata));
       localStorage.setItem(`mock_file_content_${code}`, contentDataUrl);
+      if (password) {
+        localStorage.setItem(`mock_file_password_${code}`, password);
+      }
 
       // Add to user's local history
       historyService.addToHistory(metadata);
@@ -116,17 +131,19 @@ export const fileService = {
       return new Promise<FileMetadata>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         const formData = new FormData();
-        formData.append("file", finalFile, finalFileName);
-        
+        formData.append("file", file, file.name);
+
         if (options?.maxDownloads !== undefined && options.maxDownloads > 0) {
           formData.append("maxDownloads", options.maxDownloads.toString());
         }
-        
+
         if (options?.expiryHours !== undefined && options.expiryHours > 0) {
-          // Calculate expiresAt datetime string for the backend
           const expiresAtDate = new Date(Date.now() + options.expiryHours * 60 * 60 * 1000);
           formData.append("expiresAt", expiresAtDate.toISOString());
-          formData.append("expiryHours", options.expiryHours.toString());
+        }
+
+        if (password) {
+          formData.append("password", password);
         }
 
         // Attach progress listener
@@ -144,21 +161,21 @@ export const fileService = {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const resData = JSON.parse(xhr.responseText) as { code: string; downloadUrl: string };
-              
+
               const expiresAt = options?.expiryHours
                 ? new Date(Date.now() + options.expiryHours * 60 * 60 * 1000).toISOString()
                 : undefined;
 
               const metadata: FileMetadata = {
                 code: resData.code,
-                originalFileName: file.name, // Keep it clean for local history
+                originalFileName: file.name,
                 mimeType: file.type || "application/octet-stream",
-                sizeBytes: file.size, // Store raw unencrypted size for display
+                sizeBytes: file.size,
+                requiresPassword,
                 maxDownloads: options?.maxDownloads || undefined,
                 downloadCount: 0,
                 expiresAt,
                 createdAt: new Date().toISOString(),
-                isEncrypted,
               };
 
               historyService.addToHistory(metadata);
@@ -167,7 +184,7 @@ export const fileService = {
               reject(new Error("Failed to parse response metadata from server."));
             }
           } else {
-            reject(new Error(xhr.responseText || `Upload failed with status code ${xhr.status}`));
+            reject(new Error(mapHttpError(xhr.status, xhr.responseText || `Upload failed with status code ${xhr.status}`)));
           }
         };
 
@@ -182,7 +199,9 @@ export const fileService = {
   },
 
   /**
-   * Fetches metadata for a single file by code and caches its content Blob
+   * Fetches metadata for a file by code.
+   * In real API mode, calls GET /files/{code}/info (does NOT increment download count).
+   * In mock mode, reads from localStorage.
    */
   async getFileMetadata(code: string): Promise<FileMetadata> {
     if (isMockMode()) {
@@ -203,7 +222,7 @@ export const fileService = {
       }
 
       // Check Download Limit
-      if (metadata.maxDownloads !== undefined && metadata.downloadCount >= metadata.maxDownloads) {
+      if (metadata.maxDownloads !== undefined && (metadata.downloadCount ?? 0) >= metadata.maxDownloads) {
         this.deleteMockData(code);
         throw new Error("This file has reached its download limit.");
       }
@@ -221,64 +240,48 @@ export const fileService = {
 
       return metadata;
     } else {
-      // Fetch the binary file directly since the backend does not have a separate metadata endpoint
-      const response = await fetch(`${API_BASE_URL}/files/${code}`);
+      // Real API: call GET /files/{code}/info
+      const response = await fetch(`${API_BASE_URL}/files/${encodeURIComponent(code)}/info`);
+
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error("File not found or has expired.");
         }
-        if (response.status === 410 || response.status === 500) {
+        if (response.status === 410) {
           throw new Error("This file has expired or is unavailable.");
         }
-        throw new Error(`Failed to fetch file: ${response.statusText}`);
+        throw new Error(mapHttpError(response.status, `Failed to fetch file info: ${response.statusText}`));
       }
 
-      const blob = await response.blob();
-      
-      // Cache the raw blob
-      blobCache.set(code, blob);
-
-      // Parse original filename from Content-Disposition header
-      let originalFileName = "shared-file";
-      const contentDisposition = response.headers.get("content-disposition");
-      if (contentDisposition) {
-        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-        const matches = filenameRegex.exec(contentDisposition);
-        if (matches != null && matches[1]) {
-          originalFileName = matches[1].replace(/['"]/g, "");
-        }
-      }
-
-      // Check if file is encrypted (starts with [E2EE])
-      let isEncrypted = false;
-      if (originalFileName.startsWith("[E2EE]")) {
-        isEncrypted = true;
-        originalFileName = originalFileName.substring(6);
-      }
-
-      const mimeType = blob.type || response.headers.get("content-type") || "application/octet-stream";
-      const sizeBytes = blob.size;
-
-      const metadata: FileMetadata = {
-        code,
-        originalFileName,
-        mimeType,
-        sizeBytes,
-        downloadCount: 0,
-        createdAt: new Date().toISOString(),
-        isEncrypted,
+      const data = await response.json() as {
+        code: string;
+        originalFilename: string;
+        mimeType: string;
+        sizeBytes: number;
+        requiresPassword: boolean;
+        expiresAt?: string;
+        createdAt: string;
       };
 
-      // Merge local uploader history metadata if present
+      // Map backend response (camelCase from System.Text.Json) to our FileMetadata type
+      const metadata: FileMetadata = {
+        code: data.code,
+        originalFileName: data.originalFilename,
+        mimeType: data.mimeType,
+        sizeBytes: data.sizeBytes,
+        requiresPassword: data.requiresPassword,
+        expiresAt: data.expiresAt,
+        createdAt: data.createdAt,
+      };
+
+      // Merge local uploader history metadata if present (e.g. maxDownloads, downloadCount)
       const localHistory = historyService.getHistory();
       const matchedLocal = localHistory.find((item) => item.code === code);
       if (matchedLocal) {
-        metadata.expiresAt = matchedLocal.expiresAt;
         metadata.maxDownloads = matchedLocal.maxDownloads;
         metadata.downloadCount = matchedLocal.downloadCount;
-        metadata.createdAt = matchedLocal.createdAt;
-        if (matchedLocal.isEncrypted) {
-          metadata.isEncrypted = true;
+        if (!metadata.expiresAt && matchedLocal.expiresAt) {
+          metadata.expiresAt = matchedLocal.expiresAt;
         }
       }
 
@@ -287,112 +290,106 @@ export const fileService = {
   },
 
   /**
-   * Decrypts the cached blob and saves it to decryptedCache
+   * Verifies a file's password on the server.
+   * In mock mode, checks against the locally stored password.
    */
-  async decryptCachedBlob(code: string, password: string): Promise<Blob> {
-    const encryptedBlob = blobCache.get(code);
-    if (!encryptedBlob) {
-      throw new Error("Encrypted file content is not loaded in memory cache. Please reload.");
-    }
-
-    // Decrypt standard CryptoService array buffer
-    const decryptedArrayBuffer = await CryptoService.decryptFile(encryptedBlob, password);
-
-    // Try to locate metadata to know extension
-    let metadata: FileMetadata | null = null;
+  async verifyPassword(code: string, password: string): Promise<boolean> {
     if (isMockMode()) {
-      const metaStr = localStorage.getItem(`mock_file_meta_${code}`);
-      if (metaStr) metadata = JSON.parse(metaStr);
+      await delay(300);
+      const storedPassword = localStorage.getItem(`mock_file_password_${code}`);
+      if (!storedPassword) {
+        throw new Error("This file does not have a password.");
+      }
+      if (storedPassword !== password) {
+        throw new Error("Invalid password.");
+      }
+      return true;
     } else {
-      const localHistory = historyService.getHistory();
-      metadata = localHistory.find((item) => item.code === code) || null;
+      const response = await fetch(
+        `${API_BASE_URL}/files/${encodeURIComponent(code)}/verify-password`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        }
+      );
+
+      if (response.status === 404) {
+        throw new Error("File not found.");
+      }
+      if (response.status === 401) {
+        throw new Error("Invalid password.");
+      }
+      if (!response.ok) {
+        throw new Error(mapHttpError(response.status, "Failed to verify password."));
+      }
+
+      const data = await response.json() as { valid: boolean };
+      if (!data.valid) {
+        throw new Error("Invalid password.");
+      }
+      return true;
     }
-
-    const fileName = metadata?.originalFileName || "decrypted-file";
-    const extension = fileName.split(".").pop()?.toLowerCase() || "";
-
-    const mimeMap: Record<string, string> = {
-      png: "image/png",
-      jpg: "image/jpeg",
-      jpeg: "image/jpeg",
-      gif: "image/gif",
-      webp: "image/webp",
-      pdf: "application/pdf",
-      txt: "text/plain",
-      html: "text/html",
-      json: "application/json",
-      zip: "application/zip",
-      xml: "application/xml",
-    };
-
-    const detectedMime = mimeMap[extension] || "application/octet-stream";
-    const decryptedBlob = new Blob([decryptedArrayBuffer], { type: detectedMime });
-
-    // Store in decryptedCache
-    decryptedCache.set(code, decryptedBlob);
-
-    return decryptedBlob;
   },
 
   /**
-   * Deletes a file by code
+   * Deletes a file by code.
    */
   async deleteFile(code: string): Promise<void> {
     if (isMockMode()) {
       await delay(300);
       this.deleteMockData(code);
     } else {
-      const response = await fetch(`${API_BASE_URL}/files/${code}`, {
+      const response = await fetch(`${API_BASE_URL}/files/${encodeURIComponent(code)}`, {
         method: "DELETE",
       });
       if (!response.ok) {
-        throw new Error(`Failed to delete file: ${response.statusText}`);
+        throw new Error(mapHttpError(response.status, `Failed to delete file: ${response.statusText}`));
       }
       historyService.removeFromHistory(code);
       blobCache.delete(code);
-      decryptedCache.delete(code);
     }
   },
 
   /**
-   * Generates the API download URL for direct access or triggers download in Mock mode
+   * Generates the API download URL.
    */
   getDownloadUrl(code: string): string {
     if (isMockMode()) {
       return "#mock-download";
     }
-    return `${API_BASE_URL}/files/${code}`;
+    return `${API_BASE_URL}/files/${encodeURIComponent(code)}`;
   },
 
   /**
-   * Downloads a file and increments count (handles mock downloads directly)
+   * Downloads a file.
+   * In real API mode, navigates to GET /files/{code}?password=xxx (triggers signed-url redirect).
+   * In mock mode, downloads from the cached blob.
    */
-  async downloadFile(code: string, fileName: string): Promise<void> {
-    const cachedBlob = decryptedCache.get(code) || blobCache.get(code);
-
-    if (cachedBlob) {
-      if (isMockMode()) {
-        const metaStr = localStorage.getItem(`mock_file_meta_${code}`);
-        if (!metaStr) {
-          throw new Error("File metadata not found.");
-        }
-        
-        const metadata = JSON.parse(metaStr) as FileMetadata;
-        metadata.downloadCount++;
-        localStorage.setItem(`mock_file_meta_${code}`, JSON.stringify(metadata));
-        historyService.updateDownloadCount(code);
-
-        // Check if limit exceeded, delete if so
-        if (metadata.maxDownloads !== undefined && metadata.downloadCount >= metadata.maxDownloads) {
-          await delay(500);
-          this.deleteMockData(code);
-        }
-      } else {
-        // Real API Mode local history updates
-        historyService.updateDownloadCount(code);
+  async downloadFile(code: string, fileName: string, password?: string): Promise<void> {
+    if (isMockMode()) {
+      const cachedBlob = blobCache.get(code);
+      if (!cachedBlob) {
+        throw new Error("File not found in memory cache.");
       }
 
-      // Download client-side from cached/decrypted Blob
+      const metaStr = localStorage.getItem(`mock_file_meta_${code}`);
+      if (!metaStr) {
+        throw new Error("File metadata not found.");
+      }
+
+      const metadata = JSON.parse(metaStr) as FileMetadata;
+      metadata.downloadCount = (metadata.downloadCount ?? 0) + 1;
+      localStorage.setItem(`mock_file_meta_${code}`, JSON.stringify(metadata));
+      historyService.updateDownloadCount(code);
+
+      // Check if limit exceeded, delete if so
+      if (metadata.maxDownloads !== undefined && (metadata.downloadCount ?? 0) >= metadata.maxDownloads) {
+        await delay(500);
+        this.deleteMockData(code);
+      }
+
+      // Download client-side from cached Blob
       const url = URL.createObjectURL(cachedBlob);
       const link = document.createElement("a");
       link.href = url;
@@ -402,30 +399,33 @@ export const fileService = {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } else {
-      if (isMockMode()) {
-        throw new Error("File not found in memory cache.");
-      } else {
-        const downloadUrl = this.getDownloadUrl(code);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => {
-          historyService.updateDownloadCount(code);
-        }, 1000);
+      // Real API: navigate to the download URL (triggers signed-url redirect + download count increment)
+      let url = this.getDownloadUrl(code);
+      if (password) {
+        url += `?password=${encodeURIComponent(password)}`;
       }
+
+      const link = document.createElement("a");
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Update local download count in history (best-effort)
+      setTimeout(() => {
+        historyService.updateDownloadCount(code);
+      }, 1000);
     }
   },
 
   /**
-   * Helper to clean up mock storage keys and caches
+   * Helper to clean up mock storage keys and caches.
    */
   deleteMockData(code: string) {
     localStorage.removeItem(`mock_file_meta_${code}`);
     localStorage.removeItem(`mock_file_content_${code}`);
+    localStorage.removeItem(`mock_file_password_${code}`);
     historyService.removeFromHistory(code);
     blobCache.delete(code);
-    decryptedCache.delete(code);
   },
 };

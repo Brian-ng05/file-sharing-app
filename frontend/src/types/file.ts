@@ -3,15 +3,16 @@ export interface FileMetadata {
   originalFileName: string;
   mimeType: string;
   sizeBytes: number;
+  requiresPassword: boolean;
   maxDownloads?: number;
-  downloadCount: number;
+  downloadCount?: number;
   expiresAt?: string; // ISO DateTime string
   createdAt: string;  // ISO DateTime string
-  isEncrypted?: boolean; // E2EE flag
+  thumbnailUrl?: string; // for future use
 }
 
 export interface UploadOptions {
   maxDownloads?: number;
   expiryHours?: number; // expiry hours (e.g. 1, 24, 168)
-  password?: string;    // E2EE password
+  password?: string;    // server-side BCrypt password
 }
