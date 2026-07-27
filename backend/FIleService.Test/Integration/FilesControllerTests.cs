@@ -1,4 +1,5 @@
 using FileService.Api;
+using FileService.Api.Data;
 using FileService.Api.Dtos.UploadFileResponse;
 using FileService.Api.Services;
 using Microsoft.AspNetCore.Hosting;
@@ -127,8 +128,10 @@ public class FilesControllerTests : IClassFixture<FilesControllerTests.Fixture>
     {
         Skip.If(_fixture.SkipTests, "Docker unavailable and TEST_POSTGRES_CONNECTION_STRING not set.");
 
-        var db = _fixture.Factory.Services
-            .GetRequiredService<FileService.Api.Data.ApplicationDbContext>();
+        using var scope = _fixture.Factory.Services.CreateScope();
+
+        var db = scope.ServiceProvider
+            .GetRequiredService<ApplicationDbContext>();
 
         var file = new FileService.Api.Entities.FileMetadata
         {
@@ -151,8 +154,10 @@ public class FilesControllerTests : IClassFixture<FilesControllerTests.Fixture>
     {
         Skip.If(_fixture.SkipTests, "Docker unavailable and TEST_POSTGRES_CONNECTION_STRING not set.");
 
-        var db = _fixture.Factory.Services
-            .GetRequiredService<FileService.Api.Data.ApplicationDbContext>();
+        using var scope = _fixture.Factory.Services.CreateScope();
+
+        var db = scope.ServiceProvider
+            .GetRequiredService<ApplicationDbContext>();
 
         var expired = new FileService.Api.Entities.FileMetadata
         {

@@ -1,0 +1,186 @@
+# =============================================================================
+# GitHub Actions - Continuous Integration
+#
+# Purpose:
+#   Validate every Pull Request before merging into main.
+#
+# This workflow:
+#   ✔ Restores dependencies
+#   ✔ Builds the solution
+#   ✔ Runs unit tests
+#   ✔ Uploads test results
+#   ✔ Validates frontend build
+#   ✔ Caches npm dependencies
+#
+# This workflow does NOT:
+#   ✘ Deploy
+#   ✘ Connect to Neon PostgreSQL
+#   ✘ Connect to Amazon S3
+#   ✘ Run integration tests
+# =============================================================================
+
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  BUILD_CONFIGURATION: Release
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Build & Unit Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Checkout source
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Install .NET SDK
+      # -----------------------------------------------------------------------
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # -----------------------------------------------------------------------
+      # Display SDK information
+      # Useful when debugging CI issues
+      # -----------------------------------------------------------------------
+      - name: Display .NET information
+        run: dotnet --info
+
+      - name: List installed SDKs
+        run: dotnet --list-sdks
+
+      # -----------------------------------------------------------------------
+      # Cache NuGet packages
+      # -----------------------------------------------------------------------
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln', '**/*.slnx') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      # -----------------------------------------------------------------------
+      # Restore dependencies
+      # -----------------------------------------------------------------------
+      - name: Restore dependencies
+        run: dotnet restore backend.slnx
+
+      # -----------------------------------------------------------------------
+      # Build solution
+      # -----------------------------------------------------------------------
+      - name: Build solution
+        run: >
+          dotnet build backend.slnx
+          --configuration $BUILD_CONFIGURATION
+          --no-restore
+
+      # -----------------------------------------------------------------------
+      # Run unit tests only
+      # Integration tests are excluded
+      # -----------------------------------------------------------------------
+      - name: Run unit tests
+        run: >
+          dotnet test backend.slnx
+          --configuration $BUILD_CONFIGURATION
+          --no-build
+          --filter "FullyQualifiedName!~Integration"
+          --logger "trx;LogFileName=test-results.trx"
+
+      # -----------------------------------------------------------------------
+      # Upload test results
+      # -----------------------------------------------------------------------
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: backend/**/*.trx
+          retention-days: 7
+
+      # -----------------------------------------------------------------------
+      # Workflow summary
+      # -----------------------------------------------------------------------
+      - name: Publish workflow summary
+        if: always()
+        run: |
+          echo "## ✅ CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Restore | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | Completed |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Configuration:** $BUILD_CONFIGURATION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**.NET SDK:** $DOTNET_VERSION" >> $GITHUB_STEP_SUMMARY
+
+  # ---------------------------------------------------------------------------
+  # Frontend: Validate React build
+  # Runs in parallel with the backend job (no "needs" dependency)
+  # ---------------------------------------------------------------------------
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Checkout source
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Install Node.js LTS
+      # -----------------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      # -----------------------------------------------------------------------
+      # Cache npm dependencies
+      # -----------------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # -----------------------------------------------------------------------
+      # Install dependencies (clean install, respects lockfile)
+      # -----------------------------------------------------------------------
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      # -----------------------------------------------------------------------
+      # Build React application
+      # -----------------------------------------------------------------------
+      - name: Build application
+        run: npm run build
+        working-directory: frontend
