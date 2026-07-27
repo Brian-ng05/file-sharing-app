@@ -16,3 +16,12 @@ export interface UploadOptions {
   expiryHours?: number; // expiry hours (e.g. 1, 24, 168)
   password?: string;    // server-side BCrypt password
 }
+
+export type FileErrorType =
+  | "not_found"
+  | "expired"
+  | "download_limit"
+  | "password_required"
+  | "invalid_password"
+  | "server_error"
+  | "network_error";

@@ -8,14 +8,14 @@ export const historyService = {
       const data = localStorage.getItem(HISTORY_KEY);
       if (!data) return [];
       const list = JSON.parse(data) as FileMetadata[];
-      // Filter out files that we know are already expired based on client time
-      const now = new Date();
-      return list.filter(item => {
-        if (item.expiresAt && new Date(item.expiresAt) < now) {
-          return false;
-        }
-        return true;
-      });
+      return list
+        .map(item => {
+          // Sanitize: cap downloadCount at maxDownloads for any stale data
+          if (item.maxDownloads !== undefined && item.maxDownloads > 0) {
+            return { ...item, downloadCount: Math.min(item.downloadCount ?? 0, item.maxDownloads) };
+          }
+          return item;
+        });
     } catch (e) {
       console.error("Error reading upload history", e);
       return [];
@@ -49,7 +49,11 @@ export const historyService = {
       const history = this.getHistory();
       const updated = history.map(item => {
         if (item.code === code) {
-          return { ...item, downloadCount: item.downloadCount + 1 };
+          const current = item.downloadCount ?? 0;
+          const max = item.maxDownloads;
+          // Cap at maxDownloads so we never exceed the limit
+          const next = max !== undefined && max > 0 ? Math.min(current + 1, max) : current + 1;
+          return { ...item, downloadCount: next };
         }
         return item;
       });

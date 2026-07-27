@@ -1,15 +1,40 @@
 import * as React from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { fileService } from "../services/file.service";
-import { FileMetadata } from "../types/file";
-import { isMockMode } from "../services/api";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { fileService, FileError } from "../services/file.service";
+import { historyService } from "../services/history.service";
+import { FileMetadata, FileErrorType } from "../types/file";
+
 import { Loading } from "../components/common/Loading";
-import { ErrorMessage } from "../components/common/ErrorMessage";
 import { FilePreview } from "../components/file/FilePreview";
 import { FileInfo } from "../components/file/FileInfo";
 import { DownloadButton } from "../components/file/DownloadButton";
 import { PasswordModal } from "../components/file/PasswordModal";
 import "./ReviewPage.css";
+
+interface ErrorState {
+  type: FileErrorType;
+  title: string;
+  description: string;
+}
+
+function buildErrorState(type: FileErrorType, description: string): ErrorState {
+  switch (type) {
+    case "not_found":
+      return { type, title: "File Not Found", description };
+    case "expired":
+      return { type, title: "File Expired", description };
+    case "download_limit":
+      return { type, title: "Download Limit Reached", description };
+    case "server_error":
+      return { type, title: "Service Temporarily Unavailable", description };
+    case "network_error":
+      return { type, title: "Cannot Connect to Server", description };
+    case "password_required":
+      return { type, title: "Password Required", description };
+    case "invalid_password":
+      return { type, title: "Incorrect Password", description };
+  }
+}
 
 const ReviewPage: React.FC = () => {
   const { code } = useParams<{ code: string }>();
@@ -17,8 +42,7 @@ const ReviewPage: React.FC = () => {
 
   const [loading, setLoading] = React.useState(true);
   const [metadata, setMetadata] = React.useState<FileMetadata | null>(null);
-  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+  const [errorState, setErrorState] = React.useState<ErrorState | null>(null);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
 
   const [needsPassword, setNeedsPassword] = React.useState(false);
@@ -42,45 +66,32 @@ const ReviewPage: React.FC = () => {
     });
   };
 
-  React.useEffect(() => {
+  const fetchFileData = React.useCallback(async () => {
     if (!code) return;
+    setLoading(true);
+    setErrorState(null);
+    try {
+      const meta = await fileService.getFileMetadata(code);
+      setMetadata(meta);
 
-    const fetchFileData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const meta = await fileService.getFileMetadata(code);
-        setMetadata(meta);
-
-        // In mock mode, try to get cached blob for preview
-        if (isMockMode()) {
-          const blob = fileService.getCachedBlob(code);
-          if (blob) {
-            setPreviewUrl(URL.createObjectURL(blob));
-          }
-        }
-
-        // If server says password required, show password modal
-        if (meta.requiresPassword) {
-          setNeedsPassword(true);
-        }
-      } catch (err: any) {
-        setError(err?.message || "File not found or has expired.");
-      } finally {
-        setLoading(false);
+      // If server says password required, show password modal
+      if (meta.requiresPassword) {
+        setNeedsPassword(true);
       }
-    };
-
-    fetchFileData();
+    } catch (err: any) {
+      if (err instanceof FileError) {
+        setErrorState(buildErrorState(err.type, err.message));
+      } else {
+        setErrorState(buildErrorState("server_error", err?.message || "An unexpected error occurred."));
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [code]);
 
   React.useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
+    fetchFileData();
+  }, [fetchFileData]);
 
   const handlePasswordSubmit = async (password: string) => {
     if (!code) return;
@@ -91,7 +102,11 @@ const ReviewPage: React.FC = () => {
       setVerifiedPassword(password);
       showToast("Password verified successfully");
     } catch (err: any) {
-      setModalError(err?.message || "Incorrect password.");
+      if (err instanceof FileError && err.type === "network_error") {
+        setErrorState(buildErrorState("network_error", err.message));
+      } else {
+        setModalError(err?.message || "Incorrect password. Please try again.");
+      }
     }
   };
 
@@ -101,30 +116,46 @@ const ReviewPage: React.FC = () => {
 
   const handleDownload = async () => {
     if (!metadata || !code || isDownloading) return;
+
+    // Client-side guard: check if download limit already reached
+    if (metadata.maxDownloads !== undefined && metadata.maxDownloads > 0 &&
+        (metadata.downloadCount ?? 0) >= metadata.maxDownloads) {
+      setErrorState(buildErrorState("download_limit", "This file has reached its maximum number of downloads."));
+      setMetadata(null);
+      return;
+    }
+
     setIsDownloading(true);
 
     try {
       await fileService.downloadFile(code, metadata.originalFileName, verifiedPassword || undefined);
       showToast("Download started");
 
+      // Update local download count in history (best-effort)
+      historyService.updateDownloadCount(code);
+
       setMetadata((prev) => {
         if (!prev) return null;
-        const newCount = (prev.downloadCount ?? 0) + 1;
-
-        if (prev.maxDownloads !== undefined && newCount >= prev.maxDownloads) {
-          setTimeout(() => {
-            setError("This file has reached its download limit.");
-            setMetadata(null);
-          }, 1500);
-        }
-
+        const newCount = Math.min((prev.downloadCount ?? 0) + 1, prev.maxDownloads ?? Infinity);
         return {
           ...prev,
           downloadCount: newCount,
         };
       });
     } catch (err: any) {
-      showToast(err?.message || "Download failed.");
+      if (err instanceof FileError) {
+        if (err.type === "invalid_password") {
+          // Re-show password modal with error
+          setNeedsPassword(true);
+          setModalError(err.message);
+        } else {
+          // Show error card for download_limit, expired, not_found, server_error, network_error
+          setErrorState(buildErrorState(err.type, err.message));
+          setMetadata(null);
+        }
+      } else {
+        showToast(err?.message || "Download failed.");
+      }
     } finally {
       setIsDownloading(false);
     }
@@ -147,13 +178,29 @@ const ReviewPage: React.FC = () => {
     return <Loading message="Checking file availability…" />;
   }
 
-  if (error || !metadata) {
+  // Error state — distinct cards per error type
+  if (errorState) {
+    const isRecoverable = errorState.type === "server_error" || errorState.type === "network_error";
     return (
-      <ErrorMessage
-        message={error || "The file you are trying to view is no longer available."}
-        showUploadButton
-        showHistoryButton
-      />
+      <div className="review-error">
+        <div className={`review-error-card`}>
+          <h2 className="review-error-title">{errorState.title}</h2>
+          <p className="review-error-desc">{errorState.description}</p>
+          <div className="review-error-actions">
+            {isRecoverable && (
+              <button type="button" className="review-error-btn review-error-btn--primary" onClick={fetchFileData}>
+                Try Again
+              </button>
+            )}
+            <Link to="/" className="review-error-btn review-error-btn--primary">
+              Upload a File
+            </Link>
+            <Link to="/history" className="review-error-btn review-error-btn--outline">
+              Go to History
+            </Link>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -167,6 +214,21 @@ const ReviewPage: React.FC = () => {
     );
   }
 
+  if (!metadata) {
+    return (
+      <div className="review-error">
+        <div className="review-error-card">
+          <h2 className="review-error-title">File Not Found</h2>
+          <p className="review-error-desc">The file you are looking for is no longer available.</p>
+          <div className="review-error-actions">
+            <Link to="/" className="review-error-btn review-error-btn--primary">Upload a File</Link>
+            <Link to="/history" className="review-error-btn review-error-btn--outline">Go to History</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="portal-page">
       {toastMsg && <div className="portal-toast">{toastMsg}</div>}
@@ -175,7 +237,7 @@ const ReviewPage: React.FC = () => {
         <FilePreview
           mimeType={metadata.mimeType}
           fileName={metadata.originalFileName}
-          previewUrl={previewUrl}
+          previewUrl={null}
         />
 
         <div className="portal-details">
