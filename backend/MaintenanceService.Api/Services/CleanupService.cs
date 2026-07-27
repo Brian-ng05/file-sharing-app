@@ -4,11 +4,11 @@ namespace MaintenanceService.Api.Services;
 
 public class CleanupService : ICleanupService
 {
-    private readonly FileServiceClient _fileServiceClient;
+    private readonly IFileServiceClient _fileServiceClient;
     private readonly ILogger<CleanupService> _logger;
 
     public CleanupService(
-        FileServiceClient fileServiceClient,
+        IFileServiceClient fileServiceClient,
         ILogger<CleanupService> logger)
     {
         _fileServiceClient = fileServiceClient;

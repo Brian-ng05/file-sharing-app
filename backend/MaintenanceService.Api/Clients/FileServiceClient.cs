@@ -1,7 +1,7 @@
 ﻿namespace MaintenanceService.Api.Clients;
 using MaintenanceService.Api.DTOs;
 
-public class FileServiceClient
+public class FileServiceClient : IFileServiceClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<FileServiceClient> _logger;
