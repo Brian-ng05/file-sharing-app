@@ -11,6 +11,8 @@ namespace FileService.Api
     {
         public static void Main(string[] args)
         {
+            LoadEnvFile();
+
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.AddDbContext<ApplicationDbContext>(
@@ -44,6 +46,24 @@ namespace FileService.Api
             app.MapControllers();
 
             app.Run();
+        }
+
+        private static void LoadEnvFile()
+        {
+            var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+            while (dir != null && !dir.GetFiles(".env").Any())
+                dir = dir.Parent;
+
+            if (dir == null) return;
+
+            var envPath = Path.Combine(dir.FullName, ".env");
+            foreach (var line in File.ReadAllLines(envPath))
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#')) continue;
+                var eq = line.IndexOf('=');
+                if (eq > 0)
+                    Environment.SetEnvironmentVariable(line[..eq].Trim(), line[(eq + 1)..].Trim());
+            }
         }
     }
 }
