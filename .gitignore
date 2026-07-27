@@ -27,5 +27,11 @@ obj/
 wwwroot/uploads/
 uploads/
 
+# Test results
+**/TestResults/
+
+# Rider/ReSharper user settings
+*.DotSettings*
+
 # Environment files
 .env
