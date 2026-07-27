@@ -84,6 +84,9 @@
 }
 
 .app-header-mock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 10px;
   font-size: 12px;
   font-weight: 500;
@@ -94,6 +97,23 @@
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
+}
+
+/* Mode indicator dot */
+.app-header-mode-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.app-header-mode-dot--mock {
+  background: #d29922;
+}
+
+.app-header-mode-dot--real {
+  background: #3fb950;
 }
 
 .app-header-mock:hover {
@@ -216,6 +236,9 @@
 
   .app-header-drawer-mock {
     margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     padding: 8px 12px;
     font-size: 13px;
     font-weight: 500;

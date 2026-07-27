@@ -35,3 +35,5 @@ uploads/
 
 # Environment files
 .env
+
+backend/FileService.Api/appsettings.Development.json

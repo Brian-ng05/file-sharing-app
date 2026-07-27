@@ -13,6 +13,30 @@
             ]
         },
         {
+            "UpstreamPathTemplate": "/files/{code}/info",
+            "UpstreamHttpMethod": [ "GET" ],
+            "DownstreamPathTemplate": "/files/{code}/info",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 7001
+                }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/files/{code}/verify-password",
+            "UpstreamHttpMethod": [ "POST" ],
+            "DownstreamPathTemplate": "/files/{code}/verify-password",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 7001
+                }
+            ]
+        },
+        {
             "UpstreamPathTemplate": "/files/{code}",
             "UpstreamHttpMethod": [ "GET", "DELETE" ],
             "DownstreamPathTemplate": "/files/{code}",

@@ -5,4 +5,5 @@
   <Project Path="MaintenanceService.Api/MaintenanceService.Api.csproj" Id="0a3c63c2-fb9c-486f-b6fe-6e14890431eb" />
   <Project Path="StorageService.Api/StorageService.Api.csproj" Id="f5e97ace-87b4-4fc3-a9de-3ec6c88fc60e" />
   <Project Path="StorageService.Test/StorageService.Test.csproj" Id="7edc2611-cdd0-4d65-b991-a5522db628be" />
+  <Project Path="MaintenanceService.Test/MaintenanceService.Test.csproj" />
 </Solution>

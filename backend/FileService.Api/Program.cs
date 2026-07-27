@@ -15,13 +15,13 @@ namespace FileService.Api
 
             builder.Services.AddDbContext<ApplicationDbContext>(
                 options =>
-                    options.UseSqlServer(
+                    options.UseNpgsql(
                         builder.Configuration
                             .GetConnectionString("Default")));
 
             var gatewayUrl = builder.Configuration["Services:GatewayUrl"]!;
 
-            builder.Services.AddHttpClient<StorageApiClient>(c =>
+            builder.Services.AddHttpClient<IStorageApiClient, StorageApiClient>(c =>
                 c.BaseAddress = new Uri(gatewayUrl));
 
             builder.Services.AddScoped<IFileRepository, FileRepository>();

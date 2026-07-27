@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 
 namespace FileService.Api.Services
 {
-    public class StorageApiClient
+    public class StorageApiClient : IStorageApiClient
     {
         private readonly HttpClient _http;
 

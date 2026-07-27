@@ -4,7 +4,7 @@ interface LoadingProps {
   message?: string;
 }
 
-export const Loading: React.FC<LoadingProps> = ({ message = "Retrieving file metadata..." }) => {
+export const Loading: React.FC<LoadingProps> = ({ message = "Checking file availability…" }) => {
   return (
     <div 
       className="card animate-fade-in" 
@@ -22,8 +22,11 @@ export const Loading: React.FC<LoadingProps> = ({ message = "Retrieving file met
       <div className="spinner-wrapper" style={{ position: "relative", width: "80px", height: "80px", marginBottom: "24px" }}>
         <div className="spinner-outer" />
         <div className="spinner-inner" />
-        <div className="spinner-center" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", fontSize: "28px" }}>
-          🔄
+        <div className="spinner-center" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--portal-primary, #0969da)" }}>
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
         </div>
       </div>
       <p style={{ color: "var(--text)", fontWeight: 500, margin: 0, fontSize: "16px" }}>{message}</p>

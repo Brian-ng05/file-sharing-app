@@ -8,7 +8,7 @@ namespace FileService.Api.Services
     public class FileService : IFileService
     {
         private readonly IFileRepository _repo;
-        private readonly StorageApiClient _storageApiClient;
+        private readonly IStorageApiClient _storageApiClient;
 
         private const long MAX_SIZE = 10 * 1024 * 1024;
 
@@ -23,7 +23,7 @@ namespace FileService.Api.Services
 
         public FileService(
             IFileRepository repo,
-            StorageApiClient storageApiClient)
+            IStorageApiClient storageApiClient)
         {
             _repo = repo;
             _storageApiClient = storageApiClient;
@@ -51,7 +51,10 @@ namespace FileService.Api.Services
                 MaxDownloads = request.MaxDownloads,
                 DownloadCount = 0,
                 ExpiresAt = request.ExpiresAt,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                PasswordHash = string.IsNullOrWhiteSpace(request.Password)
+                    ? null
+                    : BCrypt.Net.BCrypt.HashPassword(request.Password)
             };
 
             try
@@ -72,7 +75,7 @@ namespace FileService.Api.Services
             };
         }
 
-        public async Task<string> DownloadAsync(string code)
+        public async Task<string> DownloadAsync(string code, string? password)
         {
             var file = await _repo.GetByCodeAsync(code);
 
@@ -91,6 +94,15 @@ namespace FileService.Api.Services
                 throw new Exception("Download limit reached.");
             }
 
+            if (file.PasswordHash is not null)
+            {
+                if (string.IsNullOrWhiteSpace(password))
+                    throw new Exception("Password is required.");
+
+                if (!BCrypt.Net.BCrypt.Verify(password, file.PasswordHash))
+                    throw new Exception("Invalid password.");
+            }
+
             var signedUrl =
                 await _storageApiClient.GetSignedUrlAsync(file.StorageKey);
 
@@ -102,6 +114,27 @@ namespace FileService.Api.Services
             await _repo.SaveChangesAsync();
 
             return signedUrl.Url;
+        }
+
+        public async Task<bool> VerifyPasswordOnlyAsync(string code, string password)
+        {
+            var file = await _repo.GetByCodeAsync(code);
+
+            if (file is null)
+                throw new Exception("File not found.");
+
+            if (file.PasswordHash is null)
+                return true;
+
+            if (string.IsNullOrWhiteSpace(password))
+                return false;
+
+            return BCrypt.Net.BCrypt.Verify(password, file.PasswordHash);
+        }
+
+        public async Task<FileMetadata?> GetMetadataAsync(string code)
+        {
+            return await _repo.GetByCodeAsync(code);
         }
 
         public async Task DeleteAsync(string code)
@@ -166,6 +199,11 @@ namespace FileService.Api.Services
 
             await _repo.DeleteAsync(file);
             await _repo.SaveChangesAsync();
+        }
+
+        public async Task<List<FileMetadata>> GetExpiredFilesAsync()
+        {
+            return await _repo.GetExpiredFilesAsync();
         }
     }
 }

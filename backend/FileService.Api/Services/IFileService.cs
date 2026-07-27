@@ -1,5 +1,6 @@
-﻿using FileService.Api.Dtos.UploadFileResponse;
-using FileService.Api.Dtos.UploadFileRequest;
+﻿using FileService.Api.Dtos.UploadFileRequest;
+using FileService.Api.Dtos.UploadFileResponse;
+using FileService.Api.Entities;
 
 namespace FileService.Api.Services
 {
@@ -8,8 +9,14 @@ namespace FileService.Api.Services
     {
         Task<UploadFileResponse> UploadAsync(UploadFileRequest request);
 
-        Task<string> DownloadAsync(string code);
+        Task<string> DownloadAsync(string code, string? password);
+
+        Task<bool> VerifyPasswordOnlyAsync(string code, string password);
+
+        Task<FileMetadata?> GetMetadataAsync(string code);
 
         Task DeleteAsync(string code);
+
+        Task<List<FileMetadata>> GetExpiredFilesAsync();
     }
 }
