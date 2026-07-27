@@ -39,9 +39,10 @@ export const FileInfo: React.FC<FileInfoProps> = ({ metadata }) => {
     getExtension(metadata.originalFileName),
   ];
 
-  if (metadata.maxDownloads) {
-    parts.push(`${metadata.downloadCount} of ${metadata.maxDownloads} downloads`);
-  } else if (metadata.downloadCount > 0) {
+  if (metadata.maxDownloads && metadata.maxDownloads > 0) {
+    const capped = Math.min(metadata.downloadCount ?? 0, metadata.maxDownloads);
+    parts.push(`${capped} of ${metadata.maxDownloads} downloads`);
+  } else if ((metadata.downloadCount ?? 0) > 0) {
     parts.push(`${metadata.downloadCount} downloads`);
   }
 

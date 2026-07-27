@@ -181,11 +181,13 @@ const HistoryPage: React.FC = () => {
     return date.toLocaleDateString();
   };
 
-  const formatDownloads = (file: FileMetadata): string => {
-    if (file.maxDownloads) {
-      return `${file.downloadCount}/${file.maxDownloads}`;
+  const formatDownloads = (file: FileMetadata): { display: string; limitReached: boolean } => {
+    const count = file.downloadCount ?? 0;
+    if (file.maxDownloads && file.maxDownloads > 0) {
+      const capped = Math.min(count, file.maxDownloads);
+      return { display: `${capped}/${file.maxDownloads}`, limitReached: capped >= file.maxDownloads };
     }
-    return file.downloadCount > 0 ? String(file.downloadCount) : "—";
+    return { display: count > 0 ? String(count) : "\u2014", limitReached: false };
   };
 
   // Pagination logic
@@ -200,8 +202,9 @@ const HistoryPage: React.FC = () => {
       <>Uploaded {formatDate(file.createdAt)}</>,
     ];
 
-    if (file.maxDownloads) {
-      parts.push(`${file.downloadCount}/${file.maxDownloads} downloads`);
+    if (file.maxDownloads && file.maxDownloads > 0) {
+      const capped = Math.min(file.downloadCount ?? 0, file.maxDownloads);
+      parts.push(`${capped}/${file.maxDownloads} downloads`);
     }
 
     const expired = isExpired(file.expiresAt);
@@ -352,7 +355,16 @@ const HistoryPage: React.FC = () => {
                   >
                     {expiryText}
                   </span>
-                  <span className="history-row-downloads">{formatDownloads(file)}</span>
+                  <span className="history-row-downloads">
+                    {(() => {
+                      const dl = formatDownloads(file);
+                      return (
+                        <span className={dl.limitReached ? "history-downloads--limit" : ""}>
+                          {dl.display}
+                        </span>
+                      );
+                    })()}
+                  </span>
 
                   <div className="history-row-actions">
                     <Link to={`/f/${file.code}`} className="history-action history-action--primary">

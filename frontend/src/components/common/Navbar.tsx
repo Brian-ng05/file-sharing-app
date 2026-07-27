@@ -1,18 +1,9 @@
 import * as React from "react";
 import { NavLink } from "react-router-dom";
-import { isMockMode, setMockMode } from "../../services/api";
 import "./Navbar.css";
 
 const Navbar: React.FC = () => {
-  const [mockActive, setMockActive] = React.useState(isMockMode());
   const [menuOpen, setMenuOpen] = React.useState(false);
-
-  const handleToggleMock = () => {
-    const newValue = !mockActive;
-    setMockMode(newValue);
-    setMockActive(newValue);
-    window.location.reload();
-  };
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -41,16 +32,6 @@ const Navbar: React.FC = () => {
         </nav>
 
         <div className="app-header-actions">
-          <button
-            type="button"
-            className="app-header-mock"
-            onClick={handleToggleMock}
-            title="Toggle between Mock and Real API modes"
-          >
-            <span className={`app-header-mode-dot ${mockActive ? "app-header-mode-dot--mock" : "app-header-mode-dot--real"}`} />
-            {mockActive ? "Mock Mode" : "Real API"}
-          </button>
-
           <button
             type="button"
             className="app-header-menu-btn"
@@ -87,11 +68,6 @@ const Navbar: React.FC = () => {
             >
               History
             </NavLink>
-            <div className="app-header-drawer-divider" />
-            <button type="button" className="app-header-drawer-mock" onClick={handleToggleMock}>
-              <span className={`app-header-mode-dot ${mockActive ? "app-header-mode-dot--mock" : "app-header-mode-dot--real"}`} />
-              {mockActive ? "Mock Mode" : "Real API"}
-            </button>
           </nav>
         </div>
       )}

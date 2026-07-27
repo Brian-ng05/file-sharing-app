@@ -504,3 +504,15 @@
     border-color: rgba(240, 246, 252, 0.1);
   }
 }
+
+/* ===== Downloads limit indicator ===== */
+.history-downloads--limit {
+  color: #f06363;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .history-downloads--limit {
+    color: #f85149;
+  }
+}
