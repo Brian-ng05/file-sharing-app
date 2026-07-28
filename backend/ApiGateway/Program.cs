@@ -12,16 +12,29 @@ if (!builder.Environment.IsDevelopment())
         .ForEach(source => source.ReloadOnChange = false);
 }
 
-// Load ocelot.json as additional config
 builder.Configuration.AddJsonFile(
     "ocelot.json",
     optional: false,
     reloadOnChange: builder.Environment.IsDevelopment()
 );
 
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy.WithOrigins("https://file-sharing-frontend-c96a.onrender.com")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddOcelot();
 
 var app = builder.Build();
+
+// Enable CORS
+app.UseCors("Frontend");
 
 await app.UseOcelot();
 

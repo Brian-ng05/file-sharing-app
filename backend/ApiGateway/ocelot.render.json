@@ -1,0 +1,64 @@
+{
+  "Routes": [
+    {
+      "UpstreamPathTemplate": "/files",
+      "UpstreamHttpMethod": [
+        "POST"
+      ],
+      "DownstreamPathTemplate": "/files",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "https://file-service-fqbk.onrender.com",
+          "Port": 443
+        }
+      ]
+    },
+    {
+      "UpstreamPathTemplate": "/files/{code}/info",
+      "UpstreamHttpMethod": [
+        "GET"
+      ],
+      "DownstreamPathTemplate": "/files/{code}/info",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "https://file-service-fqbk.onrender.com",
+          "Port": 443
+        }
+      ]
+    },
+    {
+      "UpstreamPathTemplate": "/files/{code}/verify-password",
+      "UpstreamHttpMethod": [
+        "POST"
+      ],
+      "DownstreamPathTemplate": "/files/{code}/verify-password",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "https://file-service-fqbk.onrender.com",
+          "Port": 443
+        }
+      ]
+    },
+    {
+      "UpstreamPathTemplate": "/files/{code}",
+      "UpstreamHttpMethod": [
+        "GET",
+        "DELETE"
+      ],
+      "DownstreamPathTemplate": "/files/{code}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "https://file-service-fqbk.onrender.com",
+          "Port": 443
+        }
+      ]
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "https://api-gateway-0nli.onrender.com"
+  }
+}
