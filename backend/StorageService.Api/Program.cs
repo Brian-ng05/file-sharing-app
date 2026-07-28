@@ -1,6 +1,7 @@
 using Amazon.S3;
 using StorageService.Api.Models;
 using StorageService.Api.Services;
+using Microsoft.Extensions.Configuration.Json;
 
 namespace StorageService.Api
 {
@@ -11,6 +12,14 @@ namespace StorageService.Api
             LoadEnvFile();
 
             var builder = WebApplication.CreateBuilder(args);
+
+            if (!builder.Environment.IsDevelopment())
+                {
+                    builder.Configuration.Sources
+                        .OfType<JsonConfigurationSource>()
+                        .ToList()
+                        .ForEach(source => source.ReloadOnChange = false);
+                }
 
             builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AwsSettings"));
 
@@ -37,6 +46,9 @@ namespace StorageService.Api
 
         private static void LoadEnvFile()
         {
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production")
+                return;
+
             var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
             while (dir != null && !dir.GetFiles(".env").Any())
                 dir = dir.Parent;
@@ -44,12 +56,21 @@ namespace StorageService.Api
             if (dir == null) return;
 
             var envPath = Path.Combine(dir.FullName, ".env");
+
             foreach (var line in File.ReadAllLines(envPath))
             {
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#')) continue;
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#')) 
+                    continue;
+
                 var eq = line.IndexOf('=');
+
                 if (eq > 0)
-                    Environment.SetEnvironmentVariable(line[..eq].Trim(), line[(eq + 1)..].Trim());
+                {
+                    Environment.SetEnvironmentVariable(
+                        line[..eq].Trim(),
+                        line[(eq + 1)..].Trim()
+                    );
+                }
             }
         }
     }
