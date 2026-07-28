@@ -20,7 +20,7 @@
   --history-col-name: minmax(200px, 1fr);
   --history-col-size: 72px;
   --history-col-uploaded: 112px;
-  --history-col-expiry: 96px;
+  --history-col-expiry: 180px;
   --history-col-downloads: 96px;
   --history-col-actions: 210px;
 
@@ -414,6 +414,23 @@
 
   .history-row-expiry {
     grid-area: expiry;
+  }
+
+  .history-expiry-time {
+    font-size: 11px;
+    color: var(--history-text-subtle);
+    line-height: 1.3;
+  }
+
+  .history-expiry-relative {
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .history-expiry-relative--expired {
+    color: var(--history-expired-text);
+    font-weight: 600;
+    line-height: 1.4;
   }
 
   .history-row-downloads {

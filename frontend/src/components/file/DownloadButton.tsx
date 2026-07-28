@@ -6,20 +6,26 @@ interface DownloadButtonProps {
   onDownload: () => void;
   onDelete: () => void;
   isDownloading?: boolean;
+  showDelete?: boolean;
+  disabled?: boolean;
 }
 
 export const DownloadButton: React.FC<DownloadButtonProps> = ({
   onDownload,
   onDelete,
   isDownloading = false,
+  showDelete = true,
+  disabled = false,
 }) => {
+  const btnDisabled = disabled || isDownloading;
+
   return (
     <div className="portal-actions">
       <button
         type="button"
-        className="portal-download"
+        className={`portal-download ${btnDisabled ? "portal-download--disabled" : ""}`}
         onClick={onDownload}
-        disabled={isDownloading}
+        disabled={btnDisabled}
       >
         <svg
           className="portal-download-icon"
@@ -41,13 +47,15 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({
       </button>
 
       <div className="portal-secondary-actions">
-        <button
-          type="button"
-          className="portal-secondary-btn portal-secondary-btn--danger"
-          onClick={onDelete}
-        >
-          Delete
-        </button>
+        {showDelete && (
+          <button
+            type="button"
+            className="portal-secondary-btn portal-secondary-btn--danger"
+            onClick={onDelete}
+          >
+            Delete
+          </button>
+        )}
         <Link to="/" className="portal-secondary-btn">
           Upload another
         </Link>

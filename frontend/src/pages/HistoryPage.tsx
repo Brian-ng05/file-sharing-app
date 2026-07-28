@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { historyService } from "../services/history.service";
 import { fileService } from "../services/file.service";
 import { FileMetadata } from "../types/file";
+import { formatExpiryDisplay } from "../utils/expiry";
+import { useNow } from "../utils/useNow";
 import "./HistoryPage.css";
 
 const FileIcon: React.FC = () => (
@@ -23,6 +25,7 @@ const FileIcon: React.FC = () => (
 );
 
 const HistoryPage: React.FC = () => {
+  const now = useNow();
   const [historyList, setHistoryList] = React.useState<FileMetadata[]>([]);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
   const [currentPage, setCurrentPage] = React.useState<number>(1);
@@ -144,27 +147,6 @@ const HistoryPage: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
-  const formatExpiry = (expiresAt?: string): string => {
-    if (!expiresAt) return "Active";
-    const diff = new Date(expiresAt).getTime() - Date.now();
-    if (diff <= 0) return "Expired";
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours > 24) {
-      return `${Math.floor(hours / 24)} days left`;
-    }
-    if (hours > 0) {
-      return `${hours} hrs left`;
-    }
-    const mins = Math.floor(diff / (1000 * 60));
-    return `${mins} mins left`;
-  };
-
-  const isExpired = (expiresAt?: string): boolean => {
-    if (!expiresAt) return false;
-    return new Date(expiresAt).getTime() <= Date.now();
-  };
-
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
@@ -207,15 +189,12 @@ const HistoryPage: React.FC = () => {
       parts.push(`${capped}/${file.maxDownloads} downloads`);
     }
 
-    const expired = isExpired(file.expiresAt);
-    const expiryText = formatExpiry(file.expiresAt);
+    const expiry = formatExpiryDisplay(file.expiresAt, now);
     parts.push(
-      expired ? (
-        <span className="history-row-status--expired">{expiryText}</span>
-      ) : expiryText === "Active" ? (
-        <span className="history-row-status--active">{expiryText}</span>
+      expiry.active ? (
+        <span className="history-row-status--active">{expiry.relativeText}</span>
       ) : (
-        expiryText
+        <>{expiry.relativeText} · <span className={expiry.expired ? "history-row-status--expired" : ""}>{expiry.localTimeText}</span></>
       )
     );
 
@@ -316,8 +295,7 @@ const HistoryPage: React.FC = () => {
             </li>
 
             {currentItems.map((file) => {
-              const expired = isExpired(file.expiresAt);
-              const expiryText = formatExpiry(file.expiresAt);
+              const expiry = formatExpiryDisplay(file.expiresAt, now);
               const isSelected = selectedItems.has(file.code);
 
               return (
@@ -346,14 +324,21 @@ const HistoryPage: React.FC = () => {
                   <span className="history-row-date">{formatDate(file.createdAt)}</span>
                   <span
                     className={`history-row-expiry ${
-                      expired
+                      expiry.expired
                         ? "history-row-status--expired"
-                        : expiryText === "Active"
+                        : expiry.active
                           ? "history-row-status--active"
                           : ""
                     }`}
                   >
-                    {expiryText}
+                    {expiry.active ? (
+                      expiry.relativeText
+                    ) : (
+                      <>
+                        <div className={expiry.expired ? "history-expiry-relative--expired" : "history-expiry-relative"}>{expiry.relativeText}</div>
+                        <div className="history-expiry-time">{expiry.localTimeText}</div>
+                      </>
+                    )}
                   </span>
                   <span className="history-row-downloads">
                     {(() => {
