@@ -24,6 +24,18 @@ namespace FileService.Api
                         .ForEach(source => source.ReloadOnChange = false);
                 }
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("frontend",
+                    policy =>
+                    {
+                        policy
+                        .WithOrigins("https://your-frontend.onrender.com")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                    });
+            });
+
             builder.Services.AddDbContext<ApplicationDbContext>(
                 options =>
                     options.UseNpgsql(
