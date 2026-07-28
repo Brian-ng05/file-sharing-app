@@ -1,0 +1,89 @@
+services:
+
+  # ─── API Gateway (Ocelot) ─────────────────────────────────────────────
+  apigateway:
+    build:
+      context: ./backend
+      dockerfile: ApiGateway/Dockerfile
+    container_name: file-sharing-apigateway
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      # Mount docker-compatible Ocelot routes (service names instead of localhost)
+      - ./docker-compose/ocelot.docker.json:/app/ocelot.json
+    networks:
+      - file-sharing-network
+    depends_on:
+      - fileservice
+
+  # ─── File Service (Upload/Download/Metadata) ──────────────────────────
+  fileservice:
+    build:
+      context: ./backend
+      dockerfile: FileService.Api/Dockerfile
+    container_name: file-sharing-fileservice
+    ports:
+      - "7001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Default=${ConnectionStrings__Default}
+      - Services__GatewayUrl=http://storageservice:8080
+      - AwsSettings__AccessKey=${AwsSettings__AccessKey}
+      - AwsSettings__SecretKey=${AwsSettings__SecretKey}
+      - AwsSettings__Region=${AwsSettings__Region}
+      - AwsSettings__BucketName=${AwsSettings__BucketName}
+    networks:
+      - file-sharing-network
+    depends_on:
+      - storageservice
+
+  # ─── Storage Service (AWS S3) ─────────────────────────────────────────
+  storageservice:
+    build:
+      context: ./backend
+      dockerfile: StorageService.Api/Dockerfile
+    container_name: file-sharing-storageservice
+    ports:
+      - "5282:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - AwsSettings__AccessKey=${AwsSettings__AccessKey}
+      - AwsSettings__SecretKey=${AwsSettings__SecretKey}
+      - AwsSettings__Region=${AwsSettings__Region}
+      - AwsSettings__BucketName=${AwsSettings__BucketName}
+    networks:
+      - file-sharing-network
+
+  # ─── Maintenance Service (Background Worker) ──────────────────────────
+  maintenanceservice:
+    build:
+      context: ./backend
+      dockerfile: MaintenanceService.Api/Dockerfile
+    container_name: file-sharing-maintenance
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Services__GatewayUrl=http://fileservice:8080
+      - ConnectionStrings__Default=${ConnectionStrings__Default}
+    networks:
+      - file-sharing-network
+    depends_on:
+      - fileservice
+
+  # ─── Frontend (React / Vite + nginx) ──────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: file-sharing-frontend
+    ports:
+      - "80:80"
+    networks:
+      - file-sharing-network
+    depends_on:
+      - apigateway
+
+networks:
+  file-sharing-network:
+    driver: bridge

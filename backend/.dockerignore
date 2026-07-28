@@ -1,0 +1,24 @@
+# Test projects (not needed at runtime)
+**/*.Test/
+**/*.Tests/
+**/TestResults/
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userprefs
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+**/bin/
+**/obj/
+
+# Environment files (secrets mounted at runtime)
+.env
+*.env

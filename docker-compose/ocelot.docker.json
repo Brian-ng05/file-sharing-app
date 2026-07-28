@@ -1,0 +1,43 @@
+{
+    "Routes": [
+        {
+            "UpstreamPathTemplate": "/files",
+            "UpstreamHttpMethod": [ "POST" ],
+            "DownstreamPathTemplate": "/files",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                { "Host": "fileservice", "Port": 8080 }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/files/{code}/info",
+            "UpstreamHttpMethod": [ "GET" ],
+            "DownstreamPathTemplate": "/files/{code}/info",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                { "Host": "fileservice", "Port": 8080 }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/files/{code}/verify-password",
+            "UpstreamHttpMethod": [ "POST" ],
+            "DownstreamPathTemplate": "/files/{code}/verify-password",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                { "Host": "fileservice", "Port": 8080 }
+            ]
+        },
+        {
+            "UpstreamPathTemplate": "/files/{code}",
+            "UpstreamHttpMethod": [ "GET", "DELETE" ],
+            "DownstreamPathTemplate": "/files/{code}",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                { "Host": "fileservice", "Port": 8080 }
+            ]
+        }
+    ],
+    "GlobalConfiguration": {
+        "BaseUrl": "http://apigateway:8080"
+    }
+}
