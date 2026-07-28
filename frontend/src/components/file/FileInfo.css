@@ -18,6 +18,11 @@
   font-weight: 500;
 }
 
+.portal-meta--limit-reached {
+  color: var(--portal-danger);
+  font-weight: 600;
+}
+
 .portal-meta-badge {
   display: inline-flex;
   align-items: center;

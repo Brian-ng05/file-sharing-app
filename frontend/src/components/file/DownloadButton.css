@@ -31,6 +31,16 @@
   cursor: not-allowed;
 }
 
+.portal-download--disabled {
+  background: var(--portal-preview-bg);
+  color: var(--portal-text-muted);
+  cursor: not-allowed;
+}
+
+.portal-download--disabled:hover {
+  background: var(--portal-preview-bg);
+}
+
 .portal-download-icon {
   flex-shrink: 0;
 }

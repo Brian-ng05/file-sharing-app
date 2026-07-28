@@ -1,5 +1,7 @@
 import * as React from "react";
 import { FileMetadata } from "../../types/file";
+import { formatExpiryDisplay } from "../../utils/expiry";
+import { useNow } from "../../utils/useNow";
 import "./FileInfo.css";
 
 interface FileInfoProps {
@@ -18,39 +20,34 @@ const getExtension = (name: string): string => {
   return name.split(".").pop()?.toUpperCase() || "FILE";
 };
 
-const formatExpiry = (expiresAt: string): { text: string; expired: boolean } => {
-  const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return { text: "Expired", expired: true };
-
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  if (hours > 24) {
-    return { text: `Expires in ${Math.floor(hours / 24)} days`, expired: false };
-  }
-  if (hours > 0) {
-    return { text: `Expires in ${hours} hours`, expired: false };
-  }
-  const mins = Math.floor(diff / (1000 * 60));
-  return { text: `Expires in ${mins} minutes`, expired: false };
-};
-
 export const FileInfo: React.FC<FileInfoProps> = ({ metadata }) => {
+  const now = useNow();
+  const hasLimit = metadata.maxDownloads !== undefined && metadata.maxDownloads > 0;
+  const capped = Math.min(metadata.downloadCount ?? 0, metadata.maxDownloads ?? Infinity);
+  const limitReached = hasLimit && capped >= metadata.maxDownloads!;
+
   const parts: React.ReactNode[] = [
     formatBytes(metadata.sizeBytes),
     getExtension(metadata.originalFileName),
   ];
 
-  if (metadata.maxDownloads && metadata.maxDownloads > 0) {
-    const capped = Math.min(metadata.downloadCount ?? 0, metadata.maxDownloads);
-    parts.push(`${capped} of ${metadata.maxDownloads} downloads`);
+  if (hasLimit) {
+    parts.push(
+      <span key="downloads" className={limitReached ? "portal-meta--limit-reached" : undefined}>
+        Downloads: {capped}/{metadata.maxDownloads}
+      </span>
+    );
   } else if ((metadata.downloadCount ?? 0) > 0) {
-    parts.push(`${metadata.downloadCount} downloads`);
+    parts.push(`Downloads: ${metadata.downloadCount}`);
+  } else {
+    parts.push("Downloads: Unlimited");
   }
 
   if (metadata.expiresAt) {
-    const expiry = formatExpiry(metadata.expiresAt);
+    const expiry = formatExpiryDisplay(metadata.expiresAt, now);
     parts.push(
       <span key="expiry" className={expiry.expired ? "portal-meta--expired" : undefined}>
-        {expiry.text}
+        {expiry.relativeText}
       </span>
     );
   }

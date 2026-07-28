@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { fileService, FileError } from "../services/file.service";
 import { historyService } from "../services/history.service";
 import { FileMetadata, FileErrorType } from "../types/file";
+import { formatExpiryDisplay } from "../utils/expiry";
+import { useNow } from "../utils/useNow";
 
 import { Loading } from "../components/common/Loading";
 import { FilePreview } from "../components/file/FilePreview";
@@ -39,6 +41,7 @@ function buildErrorState(type: FileErrorType, description: string): ErrorState {
 const ReviewPage: React.FC = () => {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  const now = useNow();
 
   const [loading, setLoading] = React.useState(true);
   const [metadata, setMetadata] = React.useState<FileMetadata | null>(null);
@@ -72,6 +75,19 @@ const ReviewPage: React.FC = () => {
     setErrorState(null);
     try {
       const meta = await fileService.getFileMetadata(code);
+
+      // Merge download count / max from local history if backend doesn't provide them
+      const historyList = historyService.getHistory();
+      const historyItem = historyList.find((h) => h.code === code);
+      if (historyItem) {
+        if (meta.maxDownloads === undefined && historyItem.maxDownloads !== undefined) {
+          meta.maxDownloads = historyItem.maxDownloads;
+        }
+        if (meta.downloadCount === undefined && historyItem.downloadCount !== undefined) {
+          meta.downloadCount = historyItem.downloadCount;
+        }
+      }
+
       setMetadata(meta);
 
       // If server says password required, show password modal
@@ -114,16 +130,15 @@ const ReviewPage: React.FC = () => {
     navigate("/");
   };
 
-  const handleDownload = async () => {
-    if (!metadata || !code || isDownloading) return;
+  // Compute disabled state for Download button
+  const hasDownloadLimit = metadata?.maxDownloads !== undefined && metadata.maxDownloads > 0;
+  const currentDownloads = metadata?.downloadCount ?? 0;
+  const limitReached = hasDownloadLimit && currentDownloads >= metadata.maxDownloads!;
+  const isExpired = metadata?.expiresAt ? formatExpiryDisplay(metadata.expiresAt, now).expired : false;
+  const downloadDisabled = isExpired || limitReached || isDownloading;
 
-    // Client-side guard: check if download limit already reached
-    if (metadata.maxDownloads !== undefined && metadata.maxDownloads > 0 &&
-        (metadata.downloadCount ?? 0) >= metadata.maxDownloads) {
-      setErrorState(buildErrorState("download_limit", "This file has reached its maximum number of downloads."));
-      setMetadata(null);
-      return;
-    }
+  const handleDownload = async () => {
+    if (!metadata || !code || downloadDisabled) return;
 
     setIsDownloading(true);
 
@@ -264,6 +279,8 @@ const ReviewPage: React.FC = () => {
             onDownload={handleDownload}
             onDelete={handleDelete}
             isDownloading={isDownloading}
+            showDelete={false}
+            disabled={downloadDisabled}
           />
         </div>
       </div>
