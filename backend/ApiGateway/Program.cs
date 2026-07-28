@@ -13,7 +13,12 @@ if (!builder.Environment.IsDevelopment())
 }
 
 // Load ocelot.json as additional config
-builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange:true);
+builder.Configuration.AddJsonFile(
+    "ocelot.json",
+    optional: false,
+    reloadOnChange: builder.Environment.IsDevelopment()
+);
+
 builder.Services.AddOcelot();
 
 var app = builder.Build();

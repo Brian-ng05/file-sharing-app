@@ -4,6 +4,7 @@ using FileService.Api.Repository;
 using FileManagementService = FileService.Api.Services.FileService;   
 using FileService.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration.Json;
 
 namespace FileService.Api
 {
@@ -14,6 +15,14 @@ namespace FileService.Api
             LoadEnvFile();
 
             var builder = WebApplication.CreateBuilder(args);
+
+            if (!builder.Environment.IsDevelopment())
+                {
+                    builder.Configuration.Sources
+                        .OfType<JsonConfigurationSource>()
+                        .ToList()
+                        .ForEach(source => source.ReloadOnChange = false);
+                }
 
             builder.Services.AddDbContext<ApplicationDbContext>(
                 options =>
