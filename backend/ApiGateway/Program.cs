@@ -12,8 +12,14 @@ if (!builder.Environment.IsDevelopment())
         .ForEach(source => source.ReloadOnChange = false);
 }
 
+// Development -> ocelot.json
+// Production  -> ocelot.render.json
+var ocelotConfigFile = builder.Environment.IsDevelopment()
+    ? "ocelot.json"
+    : "ocelot.render.json";
+
 builder.Configuration.AddJsonFile(
-    "ocelot.json",
+    ocelotConfigFile,
     optional: false,
     reloadOnChange: builder.Environment.IsDevelopment()
 );
