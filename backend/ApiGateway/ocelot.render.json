@@ -9,7 +9,7 @@
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
-          "Host": "https://file-service-fqbk.onrender.com",
+          "Host": "file-service-fqbk.onrender.com",
           "Port": 443
         }
       ]
@@ -23,7 +23,7 @@
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
-          "Host": "https://file-service-fqbk.onrender.com",
+          "Host": "file-service-fqbk.onrender.com",
           "Port": 443
         }
       ]
@@ -37,7 +37,7 @@
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
-          "Host": "https://file-service-fqbk.onrender.com",
+          "Host": "file-service-fqbk.onrender.com",
           "Port": 443
         }
       ]
@@ -52,7 +52,7 @@
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
-          "Host": "https://file-service-fqbk.onrender.com",
+          "Host": "file-service-fqbk.onrender.com",
           "Port": 443
         }
       ]
