@@ -104,7 +104,7 @@ namespace FileService.Api.Services
             }
 
             var signedUrl =
-                await _storageApiClient.GetSignedUrlAsync(file.StorageKey);
+                await _storageApiClient.GetSignedUrlAsync(file.StorageKey, file.OriginalFilename);
 
             if (signedUrl is null || string.IsNullOrEmpty(signedUrl.Url))
                 throw new Exception("Failed to generate signed URL.");

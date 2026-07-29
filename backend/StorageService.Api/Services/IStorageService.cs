@@ -9,7 +9,7 @@ public interface IStorageService
 
     Task DeleteAsync(string storageKey);
 
-    Task<string> GenerateSignedUrlAsync(string storageKey);
+    Task<string> GenerateSignedUrlAsync(string storageKey, string? fileName = null);
 
     Task<bool> ExistsAsync(string storageKey);
 }

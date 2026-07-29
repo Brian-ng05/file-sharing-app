@@ -43,10 +43,15 @@ namespace FileService.Api.Services
             return result;
         }
 
-        public async Task<SignedUrlResponse> GetSignedUrlAsync(string storageKey)
+        public async Task<SignedUrlResponse> GetSignedUrlAsync(string storageKey, string? fileName = null)
         {
-            var result = await _http.GetFromJsonAsync<SignedUrlResponse>(
-                $"api/objects/signed-url?storageKey={Uri.EscapeDataString(storageKey)}");
+            var query = $"api/objects/signed-url?storageKey={Uri.EscapeDataString(storageKey)}";
+            if (fileName is not null)
+            {
+                query += $"&fileName={Uri.EscapeDataString(fileName)}";
+            }
+
+            var result = await _http.GetFromJsonAsync<SignedUrlResponse>(query);
 
             if (result is null)
             {

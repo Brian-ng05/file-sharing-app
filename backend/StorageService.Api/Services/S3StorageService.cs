@@ -105,7 +105,7 @@ public class S3StorageService : IStorageService
         }
     }
 
-    public async Task<string> GenerateSignedUrlAsync(string storageKey)
+    public async Task<string> GenerateSignedUrlAsync(string storageKey, string? fileName = null)
     {
         if (string.IsNullOrWhiteSpace(storageKey))
         {
@@ -120,16 +120,23 @@ public class S3StorageService : IStorageService
                 throw new FileNotFoundException($"Object with key {storageKey} not found", storageKey);
             }
 
+            var disposition = fileName is not null
+                ? $"attachment; filename=\"{fileName}\""
+                : "attachment";
+
             var request = new GetPreSignedUrlRequest
             {
                 BucketName = _awsSettings.BucketName,
                 Key = storageKey,
-                Expires = DateTime.UtcNow.AddMinutes(15)
+                Verb = HttpVerb.GET,
+                Expires = DateTime.UtcNow.AddMinutes(15),
+                ResponseHeaderOverrides = new ResponseHeaderOverrides
+                {
+                    ContentDisposition = disposition
+                }
             };
 
-            var url = _s3.GetPreSignedURL(request);
-
-            return url;
+            return _s3.GetPreSignedURL(request);
         }
         catch (AmazonS3Exception ex)
         {

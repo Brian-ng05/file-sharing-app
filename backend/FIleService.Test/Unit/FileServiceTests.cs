@@ -181,7 +181,7 @@ public class FileServiceTests
         };
 
         _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
-        _storageApiMock.Setup(x => x.GetSignedUrlAsync(storageKey))
+        _storageApiMock.Setup(x => x.GetSignedUrlAsync(storageKey, It.IsAny<string?>()))
             .ReturnsAsync(new SignedUrlResponse { Url = signedUrl });
 
         var result = await _sut.DownloadAsync(code, null);
@@ -281,7 +281,7 @@ public class FileServiceTests
         };
 
         _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
-        _storageApiMock.Setup(x => x.GetSignedUrlAsync(storageKey))
+        _storageApiMock.Setup(x => x.GetSignedUrlAsync(storageKey, It.IsAny<string?>()))
             .ReturnsAsync(new SignedUrlResponse { Url = "" });
 
         var ex = await Assert.ThrowsAsync<Exception>(

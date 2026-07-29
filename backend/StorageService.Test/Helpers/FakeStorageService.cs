@@ -19,7 +19,7 @@ public class FakeStorageService : IStorageService
         return Task.CompletedTask;
     }
 
-    public Task<string> GenerateSignedUrlAsync(string storageKey)
+    public Task<string> GenerateSignedUrlAsync(string storageKey, string? fileName = null)
     {
         if (!_objects.ContainsKey(storageKey) || !_objects[storageKey])
         {

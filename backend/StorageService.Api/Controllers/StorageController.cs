@@ -52,7 +52,9 @@ public class StorageController : ControllerBase
     }
 
     [HttpGet("signed-url")]
-    public async Task<IActionResult> GetSignedUrl([FromQuery] string storageKey)
+    public async Task<IActionResult> GetSignedUrl(
+        [FromQuery] string storageKey,
+        [FromQuery] string? fileName = null)
     {
         if (string.IsNullOrWhiteSpace(storageKey))
         {
@@ -61,7 +63,7 @@ public class StorageController : ControllerBase
 
         try
         {
-            var url = await _storageService.GenerateSignedUrlAsync(storageKey);
+            var url = await _storageService.GenerateSignedUrlAsync(storageKey, fileName);
 
             return Ok(new SignedUrlResponse
             {
