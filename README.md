@@ -1,83 +1,245 @@
 # DropShare - File & Image Sharing Service
 
-DropShare là dịch vụ chia sẻ file và hình ảnh trực tuyến (tương tự WeTransfer và Imgur), được phát triển dựa trên cấu trúc **ASP.NET Core Web API (Backend)** và **React + TypeScript SPA (Frontend)**.
+DropShare is an AMD201 coursework project for Topic 03: File & Image Sharing Service. It allows users to upload files, generate short shareable links, and let recipients open the link to view file information and download the file.
 
-Dự án hiện tại đã hoàn thành tích hợp và kết nối thành công giữa **Frontend (Phase 2)** và **Backend (Nhánh `feature/file-upload`)**.
+The project is built as a full-stack web application with a React frontend, ASP.NET Core backend services, PostgreSQL metadata storage, and AWS S3 object storage.
 
----
+## Main Features
 
-## 👥 Phân Chia Vai Trò (Team Roles)
+- Upload files through a React single-page application.
+- Generate a short share link for each uploaded file.
+- Open a public review page at `/f/{code}`.
+- Download files through the backend download endpoint.
+- Support password-protected files.
+- Support expiry time.
+- Support download limits.
+- Keep local upload history in the browser.
+- Store file metadata in PostgreSQL.
+- Store file content in AWS S3.
+- Use signed URLs for controlled S3 access.
 
-* **Member 1 (Backend Core):** Đảm nhiệm thiết kế cơ sở dữ liệu EF Core, Repository pattern, API tải lên (`POST /files`), tải xuống (`GET /files/{code}`), và xóa file (`DELETE /files/{code}`).
-* **Member 2 (Frontend Domain - Hiện tại đã hoàn thành):** Đảm nhiệm xây dựng giao diện React SPA, kéo-thả file, hiển thị thanh tiến trình thực tế bằng `XMLHttpRequest` (Phase 2), trang Lịch sử tải lên (`localStorage`), trang chi tiết xem trước (Preview) hình ảnh/tài liệu và xử lý tích hợp API.
-* **Member 3 (Platform):** Đảm nhiệm lưu trữ AWS S3, ImageSharp Thumbnail, Docker, CI/CD và dịch vụ dọn dẹp chạy ngầm (Background Cleanup Service).
+## Tech Stack
 
----
+### Frontend
 
-## 📁 Cấu Trúc Thư Mục (Folder Structure)
+- React
+- Vite
+- TypeScript
+- Browser localStorage for local upload history
+
+### Backend
+
+- ASP.NET Core Web API
+- Entity Framework Core
+- PostgreSQL
+- AWS S3
+- BCrypt for password hashing
+
+### DevOps
+
+- Docker
+- Docker Compose
+- GitHub Actions
+- Railway/Render-ready configuration
+
+## Project Structure
 
 ```text
 file-sharing-app/
-├── backend/                  # Mã nguồn ASP.NET Core Web API
-│   ├── ApiGateway/           # Gateway định tuyến (Cổng 5000)
-│   ├── FileService.Api/      # API dịch vụ File chính (Cổng 7001)
-│   └── ...
-├── frontend/                 # Mã nguồn React SPA (Vite + TS) (Cổng 5173)
-│   ├── src/
-│   │   ├── app/              # Cấu hình Router định tuyến chính
-│   │   ├── components/       # Các component dùng chung (UploadForm, Layout, v.v.)
-│   │   ├── pages/            # Các trang giao diện (Upload, History, Preview)
-│   │   ├── services/         # Tích hợp API và Quản lý Lịch sử
-│   │   └── types/            # Định nghĩa kiểu TypeScript
-│   └── vite.config.js        # Cấu hình Proxy chống lỗi CORS
-└── README.md
+  backend/
+    ApiGateway/
+    FileService.Api/
+    StorageService.Api/
+    MaintenanceService.Api/
+    FIleService.Test/
+    StorageService.Test/
+    MaintenanceService.Test/
+  frontend/
+    src/
+      app/
+      components/
+      pages/
+      services/
+      types/
+  docker-compose/
+  docker-compose.yml
+  README.md
 ```
 
----
+## Backend Services
 
-## 🛠️ Hướng Dẫn Cài Đặt & Chạy Dự Án (Quick Start)
+### FileService.Api
 
-### 1. Khởi chạy Backend (.NET Core Web API)
-API dịch vụ file chính chạy trên cổng **`http://localhost:7001`**.
+Handles the main file-sharing business logic:
 
-1. Cài đặt CSDL SQL Server và cấu hình chuỗi kết nối (Connection String) trong `backend/FileService.Api/appsettings.json`.
-2. Mở dự án bằng Visual Studio hoặc chạy lệnh qua terminal:
-   ```bash
-   cd backend/FileService.Api
-   dotnet run
-   ```
+- Upload validation
+- File metadata persistence
+- Password verification
+- Expiry checks
+- Download limit checks
+- Delete flow
+- Communication with StorageService
 
-### 2. Khởi chạy Frontend (React + Vite)
-Ứng dụng chạy trên cổng **`http://localhost:5173`**.
+### StorageService.Api
 
-1. Di chuyển vào thư mục frontend và cài đặt thư viện:
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. Chạy ứng dụng trong môi trường phát triển:
-   ```bash
-   npm run dev
-   ```
+Handles storage operations:
 
----
+- Upload file content to AWS S3
+- Generate signed URLs
+- Delete S3 objects
 
-## ⚙️ Giải Pháp Tích Hợp Frontend & Backend
+### MaintenanceService.Api
 
-### Chống lỗi CORS bằng Vite Proxy
-Do máy chủ Backend (`localhost:7001`) chưa bật CORS, trình duyệt sẽ chặn các kết nối trực tiếp từ Frontend (`localhost:5173`). Chúng tôi đã giải quyết triệt để lỗi này bằng cách cấu hình **Vite Reverse Proxy** trong `frontend/vite.config.js`:
-* Mọi request gửi tới đường dẫn `/files` sẽ được Vite tự động chuyển hướng (proxy) ngầm về `http://localhost:7001/files` một cách an toàn.
+Handles background cleanup logic for expired files.
 
-### Xử lý thông tin file xem trước (Preview)
-Do Backend chỉ cung cấp API tải file nhị phân trực tiếp (`GET /files/{code}`) và không có endpoint lấy metadata riêng:
-1. Frontend sẽ tiến hành tải file nhị phân về dưới dạng `Blob`.
-2. Đọc định dạng (`Content-Type`) và dung lượng trực tiếp từ dữ liệu tải về.
-3. Giải mã tên file gốc tự động bằng cách bóc tách header `Content-Disposition`.
-4. Nếu người xem là người upload, frontend sẽ tự động gộp (merge) thêm thông tin thời gian hết hạn và giới hạn lượt tải được lưu trong Lịch sử trình duyệt (`localStorage`) để hiển thị đầy đủ và chi tiết nhất.
+### ApiGateway
 
----
+Provides gateway routing for production/deployed environments.
 
-## 🔄 Chế Độ Mock (Mock Mode)
-Nếu chưa khởi chạy dự án Backend, bạn vẫn có thể kiểm thử toàn bộ tính năng giao diện bằng cách click vào nút **`Mock Mode`** ở góc trên cùng bên phải thanh Navbar:
-* **Mock Mode (Bật):** Lưu trữ file ảo dưới dạng chuỗi base64 vào bộ nhớ trình duyệt, giả lập thanh tiến trình upload tăng dần.
-* **Real API (Bật):** Kết nối trực tiếp và truyền tải file thật với máy chủ backend cổng 7001 thông qua XHR.
+## API Overview
+
+The frontend uses these main API endpoints:
+
+```http
+POST   /files
+GET    /files/{code}/info
+POST   /files/{code}/verify-password
+GET    /files/{code}
+DELETE /files/{code}
+GET    /files/expired
+```
+
+Important behavior:
+
+- `GET /files/{code}/info` returns metadata and must not increase the download count.
+- `GET /files/{code}` is the download endpoint and may increase the download count.
+- Password-protected files require verification before download.
+- Expired files and files that reach the download limit are rejected by the backend.
+
+## Frontend Pages
+
+### Upload Page
+
+Users can:
+
+- Select or drag and drop a file.
+- Set expiry time.
+- Set download limit.
+- Set an optional password.
+- See upload progress.
+- Copy the generated share link.
+
+### Review Page
+
+Recipients can:
+
+- Open `/f/{code}`.
+- View file metadata.
+- Enter a password if required.
+- Download the file if it is still available.
+
+The review page does not show a delete button because it is a public shared page.
+
+### History Page
+
+The uploader can:
+
+- View files uploaded from the current browser.
+- Copy share links.
+- Open the review page.
+- Delete uploaded files.
+
+History is stored locally in the browser and is not a global server-side history.
+
+## Local Development
+
+### Prerequisites
+
+- .NET SDK
+- Node.js
+- PostgreSQL
+- AWS S3 credentials for real cloud storage
+
+Secrets such as AWS keys and database connection strings should be configured through environment variables or .NET user secrets. Do not commit secrets to the repository.
+
+### Run Backend Services
+
+Run StorageService:
+
+```powershell
+cd backend/StorageService.Api
+dotnet run
+```
+
+Default URL:
+
+```text
+http://localhost:5282
+```
+
+Run FileService:
+
+```powershell
+cd backend/FileService.Api
+dotnet run
+```
+
+Default URL:
+
+```text
+http://localhost:7001
+```
+
+The API Gateway and MaintenanceService can be started separately when needed.
+
+### Run Frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Default URL:
+
+```text
+http://localhost:5173
+```
+
+The Vite development server proxies `/files/*` requests to the backend API.
+
+## Build And Test
+
+### Frontend
+
+```powershell
+cd frontend
+npm ci
+npm run build
+```
+
+### Backend
+
+```powershell
+cd backend
+dotnet restore backend.slnx
+dotnet build backend.slnx
+dotnet test backend.slnx
+```
+
+## Notes And Limitations
+
+- The backend database is the source of truth for expiry and download limits.
+- The frontend local history is only for the current browser/device.
+- AWS S3 signed URL behavior depends on response headers generated by the backend storage service.
+- Image preview/thumbnail support depends on backend thumbnail or preview URL support.
+
+## Coursework Context
+
+This project demonstrates:
+
+- System design and separation of frontend, backend, database, and storage.
+- REST API design with ASP.NET Core.
+- Service separation across FileService, StorageService, and MaintenanceService.
+- Cloud storage integration with AWS S3.
+- Docker and CI/CD-oriented project structure.
