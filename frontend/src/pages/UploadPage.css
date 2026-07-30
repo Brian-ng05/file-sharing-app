@@ -453,6 +453,8 @@
   background: var(--upload-bg);
   border: 1px solid var(--upload-border-strong);
   border-radius: 6px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .upload-btn-copy {
@@ -495,6 +497,16 @@
 
   .upload-btn-copy {
     width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  .upload-field-group {
+    flex-direction: column;
+  }
+
+  .upload-field-group .upload-field-select {
+    max-width: 100%;
   }
 }
 
