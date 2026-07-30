@@ -331,8 +331,8 @@
   box-shadow: 0 4px 12px rgba(31, 35, 40, 0.15);
 }
 
-/* Desktop — table-style columns */
-@media (min-width: 900px) {
+/* Desktop — table-style columns (grid needs ~1026px minimum) */
+@media (min-width: 1060px) {
   .history-list-head {
     display: grid;
     grid-template-columns: var(--history-grid-template);
@@ -440,7 +440,7 @@
 
 
 /* Mobile — stacked meta line */
-@media (max-width: 899px) {
+@media (max-width: 1059px) {
   .history-row {
     grid-template-columns: 40px 1fr;
     grid-template-areas:

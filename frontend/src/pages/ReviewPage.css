@@ -81,6 +81,8 @@
   border: 1px solid var(--portal-border);
   border-radius: 6px;
   cursor: text;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .portal-btn-copy {
@@ -124,6 +126,16 @@
   .portal-toast {
     background: #21262d;
     border: 1px solid var(--portal-border);
+  }
+}
+
+@media (max-width: 480px) {
+  .portal-share-row {
+    flex-direction: column;
+  }
+
+  .portal-btn-copy {
+    width: 100%;
   }
 }
 
