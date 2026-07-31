@@ -1,14 +1,7 @@
-using MaintenanceService.Api.BackgroundServices;
 using MaintenanceService.Api.Clients;
 using MaintenanceService.Api.Services;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Controllers
-builder.Services.AddControllers();
-
-// OpenAPI / Swagger
-builder.Services.AddOpenApi();
+var builder = Host.CreateApplicationBuilder(args);
 
 // HttpClient -> FileService
 builder.Services.AddHttpClient<IFileServiceClient, FileServiceClient>(
@@ -21,18 +14,33 @@ builder.Services.AddHttpClient<IFileServiceClient, FileServiceClient>(
 // Services
 builder.Services.AddScoped<ICleanupService, CleanupService>();
 
-// Background Job
-builder.Services.AddHostedService<CleanupBackgroundService>();
+var host = builder.Build();
 
-var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
+try
 {
-    app.MapOpenApi();
+    using var scope = host.Services.CreateScope();
+
+    var cleanupService =
+        scope.ServiceProvider.GetRequiredService<ICleanupService>();
+
+    var logger =
+        scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    logger.LogInformation("Starting cleanup job...");
+
+    var deletedCount =
+        await cleanupService.CleanupExpiredFilesAsync();
+
+    logger.LogInformation(
+        "Cleanup completed successfully. Deleted {DeletedCount} expired file(s).",
+        deletedCount);
 }
+catch (Exception ex)
+{
+    var logger =
+        host.Services.GetRequiredService<ILogger<Program>>();
 
-app.UseAuthorization();
+    logger.LogError(ex, "Cleanup job failed.");
 
-app.MapControllers();
-
-app.Run();
+    Environment.ExitCode = 1;
+}

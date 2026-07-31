@@ -1,4 +1,5 @@
 ﻿namespace MaintenanceService.Api.Clients;
+using System.Net.Http.Json;
 using MaintenanceService.Api.DTOs;
 
 public class FileServiceClient : IFileServiceClient
