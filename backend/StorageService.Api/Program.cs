@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Amazon.S3;
 using StorageService.Api.Models;
 using StorageService.Api.Services;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Configuration.Json;
 
 namespace StorageService.Api
 {
+    [ExcludeFromCodeCoverage]
     public class Program
     {
         public static void Main(string[] args)

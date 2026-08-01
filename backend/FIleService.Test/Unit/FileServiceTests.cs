@@ -192,6 +192,236 @@ public class FileServiceTests
     }
 
     [Fact]
+    public async Task DownloadAsync_WithPasswordProtectedFile_CorrectPassword_ReturnsSignedUrl()
+    {
+        var code = "pw12345";
+        var storageKey = "uploads/secret.pdf";
+        var signedUrl = "https://s3.signed/secret";
+        var password = "mypassword";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "secret.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 512,
+            DownloadCount = 0,
+            MaxDownloads = 10,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+        _storageApiMock.Setup(x => x.GetSignedUrlAsync(storageKey, It.IsAny<string?>()))
+            .ReturnsAsync(new SignedUrlResponse { Url = signedUrl });
+
+        var result = await _sut.DownloadAsync(code, password);
+
+        Assert.Equal(signedUrl, result);
+        Assert.Equal(1, metadata.DownloadCount);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WithPasswordProtectedFile_NoPassword_Throws()
+    {
+        var code = "pw12345";
+        var storageKey = "uploads/secret.pdf";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "secret.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 512,
+            DownloadCount = 0,
+            MaxDownloads = 10,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("mypassword")
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var ex = await Assert.ThrowsAsync<Exception>(
+            () => _sut.DownloadAsync(code, null));
+
+        Assert.Equal("Password is required.", ex.Message);
+        _storageApiMock.Verify(x => x.GetSignedUrlAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WithPasswordProtectedFile_WrongPassword_Throws()
+    {
+        var code = "pw12345";
+        var storageKey = "uploads/secret.pdf";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "secret.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 512,
+            DownloadCount = 0,
+            MaxDownloads = 10,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("correctpassword")
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var ex = await Assert.ThrowsAsync<Exception>(
+            () => _sut.DownloadAsync(code, "wrongpassword"));
+
+        Assert.Equal("Invalid password.", ex.Message);
+        _storageApiMock.Verify(x => x.GetSignedUrlAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WithEmptyPasswordString_WhenPasswordRequired_Throws()
+    {
+        var code = "pw12345";
+        var storageKey = "uploads/secret.pdf";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "secret.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 512,
+            DownloadCount = 0,
+            MaxDownloads = 10,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("mypassword")
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var ex = await Assert.ThrowsAsync<Exception>(
+            () => _sut.DownloadAsync(code, ""));
+
+        Assert.Equal("Password is required.", ex.Message);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WithNoPasswordProtectedFile_PasswordIgnored()
+    {
+        var code = "nopw001";
+        var storageKey = "uploads/open.pdf";
+        var signedUrl = "https://s3.signed/open";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "open.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 512,
+            DownloadCount = 0,
+            MaxDownloads = 10,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            PasswordHash = null
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+        _storageApiMock.Setup(x => x.GetSignedUrlAsync(storageKey, It.IsAny<string?>()))
+            .ReturnsAsync(new SignedUrlResponse { Url = signedUrl });
+
+        // Password provided but file has no password — it should be ignored
+        var result = await _sut.DownloadAsync(code, "somepassword");
+
+        Assert.Equal(signedUrl, result);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WithMaxDownloadsNull_UnlimitedDownloads()
+    {
+        var code = "nolimit1";
+        var storageKey = "uploads/unlimited.pdf";
+        var signedUrl = "https://s3.signed/unlimited";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "unlimited.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 512,
+            DownloadCount = 100,
+            MaxDownloads = null,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            PasswordHash = null
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+        _storageApiMock.Setup(x => x.GetSignedUrlAsync(storageKey, It.IsAny<string?>()))
+            .ReturnsAsync(new SignedUrlResponse { Url = signedUrl });
+
+        var result = await _sut.DownloadAsync(code, null);
+
+        Assert.Equal(signedUrl, result);
+        Assert.Equal(101, metadata.DownloadCount);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WithNullExpiresAt_NeverExpires()
+    {
+        var code = "noexp001";
+        var storageKey = "uploads/neverexpires.pdf";
+        var signedUrl = "https://s3.signed/never";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "neverexpires.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 512,
+            DownloadCount = 0,
+            MaxDownloads = 10,
+            ExpiresAt = null,
+            PasswordHash = null
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+        _storageApiMock.Setup(x => x.GetSignedUrlAsync(storageKey, It.IsAny<string?>()))
+            .ReturnsAsync(new SignedUrlResponse { Url = signedUrl });
+
+        var result = await _sut.DownloadAsync(code, null);
+
+        Assert.Equal(signedUrl, result);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WhenSignedUrlResponseIsNull_Throws()
+    {
+        var code = "nullurl1";
+        var storageKey = "uploads/null.pdf";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "null.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 100,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            PasswordHash = null
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+        _storageApiMock.Setup(x => x.GetSignedUrlAsync(storageKey, It.IsAny<string?>()))
+            .ReturnsAsync((SignedUrlResponse?)null);
+
+        var ex = await Assert.ThrowsAsync<Exception>(
+            () => _sut.DownloadAsync(code, null));
+
+        Assert.Equal("Failed to generate signed URL.", ex.Message);
+    }
+
+    [Fact]
     public async Task DownloadAsync_WhenCodeDoesNotExist_Throws()
     {
         _repoMock.Setup(x => x.GetByCodeAsync("missing"))
@@ -234,6 +464,32 @@ public class FileServiceTests
     }
 
     [Fact]
+    public async Task DownloadAsync_WhenFileExpired_WithPasswordProtection_DeletesFileAndThrows()
+    {
+        var code = "expired2";
+        var storageKey = "uploads/oldsecret.pdf";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "oldsecret.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 100,
+            ExpiresAt = DateTime.UtcNow.AddHours(-1),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("secret")
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var ex = await Assert.ThrowsAsync<Exception>(
+            () => _sut.DownloadAsync(code, "secret"));
+
+        Assert.Equal("File expired.", ex.Message);
+        _storageApiMock.Verify(x => x.DeleteFileAsync(storageKey), Times.Once);
+    }
+
+    [Fact]
     public async Task DownloadAsync_WhenDownloadLimitReached_DeletesFileAndThrows()
     {
         var code = "limit99";
@@ -261,6 +517,33 @@ public class FileServiceTests
         _storageApiMock.Verify(x => x.DeleteFileAsync(storageKey), Times.Once);
         _repoMock.Verify(x => x.DeleteAsync(metadata), Times.Once);
         _storageApiMock.Verify(x => x.GetSignedUrlAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WhenDownloadCountExceedsMaxDownloads_DeletesFileAndThrows()
+    {
+        var code = "limit101";
+        var storageKey = "uploads/overlimit.pdf";
+
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = storageKey,
+            OriginalFilename = "overlimit.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 100,
+            DownloadCount = 10,
+            MaxDownloads = 3,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            PasswordHash = null
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var ex = await Assert.ThrowsAsync<Exception>(
+            () => _sut.DownloadAsync(code, null));
+
+        Assert.Equal("Download limit reached.", ex.Message);
     }
 
     [Fact]
@@ -343,6 +626,352 @@ public class FileServiceTests
         Assert.Equal(2, result.Count);
         Assert.Contains(result, f => f.Code == "exp1");
         Assert.Contains(result, f => f.Code == "exp2");
+    }
+
+    [Fact]
+    public async Task GetExpiredFilesAsync_WhenNoExpiredFiles_ReturnsEmptyList()
+    {
+        _repoMock.Setup(x => x.GetExpiredFilesAsync())
+            .ReturnsAsync(new List<FileMetadata>());
+
+        var result = await _sut.GetExpiredFilesAsync();
+
+        Assert.Empty(result);
+    }
+
+    // ──────────────────────────────────────────────
+    // VERIFY PASSWORD ONLY TESTS
+    // ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task VerifyPasswordOnlyAsync_WithNoPasswordSet_ReturnsTrue()
+    {
+        var code = "nopw001";
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = "uploads/nopw.pdf",
+            PasswordHash = null
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var result = await _sut.VerifyPasswordOnlyAsync(code, "anypassword");
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task VerifyPasswordOnlyAsync_WithCorrectPassword_ReturnsTrue()
+    {
+        var code = "pwok001";
+        var password = "correctpassword";
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = "uploads/pwok.pdf",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var result = await _sut.VerifyPasswordOnlyAsync(code, password);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task VerifyPasswordOnlyAsync_WithWrongPassword_ReturnsFalse()
+    {
+        var code = "pwrong01";
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = "uploads/pwrong.pdf",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("correctpassword")
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var result = await _sut.VerifyPasswordOnlyAsync(code, "wrongpassword");
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task VerifyPasswordOnlyAsync_WhenPasswordRequired_AndEmptyPassword_ReturnsFalse()
+    {
+        var code = "pwempty1";
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = "uploads/pwempty.pdf",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("somepassword")
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var result = await _sut.VerifyPasswordOnlyAsync(code, "");
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task VerifyPasswordOnlyAsync_WhenPasswordRequired_AndNullPassword_ReturnsFalse()
+    {
+        var code = "pwnull01";
+        var metadata = new FileMetadata
+        {
+            Code = code,
+            StorageKey = "uploads/pwnull.pdf",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("somepassword")
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(metadata);
+
+        var result = await _sut.VerifyPasswordOnlyAsync(code, null!);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task VerifyPasswordOnlyAsync_WhenFileNotFound_Throws()
+    {
+        _repoMock.Setup(x => x.GetByCodeAsync("missing"))
+            .ReturnsAsync((FileMetadata?)null);
+
+        var ex = await Assert.ThrowsAsync<Exception>(
+            () => _sut.VerifyPasswordOnlyAsync("missing", "password"));
+
+        Assert.Equal("File not found.", ex.Message);
+    }
+
+    // ──────────────────────────────────────────────
+    // GET METADATA TESTS
+    // ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetMetadataAsync_WhenFileExists_ReturnsFileMetadata()
+    {
+        var code = "meta001";
+        var expected = new FileMetadata
+        {
+            Code = code,
+            StorageKey = "uploads/meta.pdf",
+            OriginalFilename = "meta.pdf",
+            MimeType = "application/pdf",
+            SizeBytes = 1024,
+            DownloadCount = 3,
+            MaxDownloads = 10,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedAt = DateTime.UtcNow,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("secret")
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(expected);
+
+        var result = await _sut.GetMetadataAsync(code);
+
+        Assert.NotNull(result);
+        Assert.Equal(code, result.Code);
+        Assert.Equal("meta.pdf", result.OriginalFilename);
+        Assert.Equal("application/pdf", result.MimeType);
+        Assert.Equal(1024, result.SizeBytes);
+        Assert.NotNull(result.PasswordHash);
+    }
+
+    [Fact]
+    public async Task GetMetadataAsync_WhenFileDoesNotExist_ReturnsNull()
+    {
+        _repoMock.Setup(x => x.GetByCodeAsync("missing"))
+            .ReturnsAsync((FileMetadata?)null);
+
+        var result = await _sut.GetMetadataAsync("missing");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetMetadataAsync_WithNoPassword_ReturnsMetadataWithNullHash()
+    {
+        var code = "nopwmeta";
+        var expected = new FileMetadata
+        {
+            Code = code,
+            StorageKey = "uploads/nopw.pdf",
+            OriginalFilename = "nopw.pdf",
+            MimeType = "text/plain",
+            SizeBytes = 256,
+            PasswordHash = null
+        };
+
+        _repoMock.Setup(x => x.GetByCodeAsync(code)).ReturnsAsync(expected);
+
+        var result = await _sut.GetMetadataAsync(code);
+
+        Assert.NotNull(result);
+        Assert.Null(result.PasswordHash);
+    }
+
+    // ──────────────────────────────────────────────
+    // UPLOAD ADDITIONAL TESTS
+    // ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task UploadAsync_WithPassword_HashesPassword()
+    {
+        var fileMock = CreateFormFile("secret.pdf", "application/pdf", 512);
+        var request = new UploadFileRequest
+        {
+            File = fileMock.Object,
+            Password = "mypassword"
+        };
+
+        _storageApiMock
+            .Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>()))
+            .ReturnsAsync(new UploadResponse { StorageKey = "s3/secret" });
+
+        var result = await _sut.UploadAsync(request);
+
+        Assert.NotNull(result);
+        _repoMock.Verify(x => x.AddAsync(It.Is<FileMetadata>(f =>
+            f.PasswordHash != null &&
+            !string.IsNullOrEmpty(f.PasswordHash))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadAsync_WithEmptyPassword_DoesNotHash()
+    {
+        var fileMock = CreateFormFile("open.pdf", "application/pdf", 512);
+        var request = new UploadFileRequest
+        {
+            File = fileMock.Object,
+            Password = ""
+        };
+
+        _storageApiMock
+            .Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>()))
+            .ReturnsAsync(new UploadResponse { StorageKey = "s3/open" });
+
+        var result = await _sut.UploadAsync(request);
+
+        Assert.NotNull(result);
+        _repoMock.Verify(x => x.AddAsync(It.Is<FileMetadata>(f =>
+            f.PasswordHash == null)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadAsync_WithWhitespacePassword_DoesNotHash()
+    {
+        var fileMock = CreateFormFile("open.pdf", "application/pdf", 512);
+        var request = new UploadFileRequest
+        {
+            File = fileMock.Object,
+            Password = "   "
+        };
+
+        _storageApiMock
+            .Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>()))
+            .ReturnsAsync(new UploadResponse { StorageKey = "s3/open" });
+
+        var result = await _sut.UploadAsync(request);
+
+        Assert.NotNull(result);
+        _repoMock.Verify(x => x.AddAsync(It.Is<FileMetadata>(f =>
+            f.PasswordHash == null)),
+            Times.Once);
+    }
+
+    [Theory]
+    [InlineData("image/jpeg")]
+    [InlineData("image/png")]
+    [InlineData("application/pdf")]
+    [InlineData("text/plain")]
+    [InlineData("application/zip")]
+    public async Task UploadAsync_WithAllAllowedMimeTypes_Succeeds(string mimeType)
+    {
+        var extension = mimeType switch
+        {
+            "image/jpeg" => "jpg",
+            "image/png" => "png",
+            "application/pdf" => "pdf",
+            "text/plain" => "txt",
+            "application/zip" => "zip",
+            _ => "bin"
+        };
+        var fileMock = CreateFormFile($"test.{extension}", mimeType, 512);
+        var request = new UploadFileRequest { File = fileMock.Object };
+
+        _storageApiMock
+            .Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>()))
+            .ReturnsAsync(new UploadResponse { StorageKey = $"s3/test.{extension}" });
+
+        var result = await _sut.UploadAsync(request);
+
+        Assert.NotNull(result);
+        Assert.Equal(8, result.Code.Length);
+    }
+
+    [Fact]
+    public async Task UploadAsync_WhenStorageReturnsNull_Throws()
+    {
+        var fileMock = CreateFormFile("null.pdf", "application/pdf", 256);
+        var request = new UploadFileRequest { File = fileMock.Object };
+
+        _storageApiMock
+            .Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>()))
+            .ReturnsAsync((UploadResponse?)null);
+
+        var ex = await Assert.ThrowsAsync<Exception>(() => _sut.UploadAsync(request));
+
+        Assert.Equal("Storage upload failed.", ex.Message);
+        _repoMock.Verify(x => x.AddAsync(It.IsAny<FileMetadata>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UploadAsync_WithNullExpiresAt_SetsNull()
+    {
+        var fileMock = CreateFormFile("noexpiry.pdf", "application/pdf", 512);
+        var request = new UploadFileRequest
+        {
+            File = fileMock.Object,
+            ExpiresAt = null
+        };
+
+        _storageApiMock
+            .Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>()))
+            .ReturnsAsync(new UploadResponse { StorageKey = "s3/noexpiry" });
+
+        var result = await _sut.UploadAsync(request);
+
+        Assert.NotNull(result);
+        _repoMock.Verify(x => x.AddAsync(It.Is<FileMetadata>(f =>
+            f.ExpiresAt == null)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadAsync_WithNullMaxDownloads_SetsNull()
+    {
+        var fileMock = CreateFormFile("unlimited.pdf", "application/pdf", 512);
+        var request = new UploadFileRequest
+        {
+            File = fileMock.Object,
+            MaxDownloads = null
+        };
+
+        _storageApiMock
+            .Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>()))
+            .ReturnsAsync(new UploadResponse { StorageKey = "s3/unlimited" });
+
+        var result = await _sut.UploadAsync(request);
+
+        Assert.NotNull(result);
+        _repoMock.Verify(x => x.AddAsync(It.Is<FileMetadata>(f =>
+            f.MaxDownloads == null)),
+            Times.Once);
     }
 
     // ──────────────────────────────────────────────

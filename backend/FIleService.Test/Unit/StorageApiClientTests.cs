@@ -117,6 +117,32 @@ public class StorageApiClientTests
     }
 
     [Fact]
+    public async Task GetSignedUrlAsync_WithFileName_AppendsFileNameParam()
+    {
+        const string storageKey = "uploads/doc.pdf";
+        const string fileName = "my-renamed-file.pdf";
+        string? capturedQuery = null;
+
+        var handler = new FakeHttpMessageHandler(request =>
+        {
+            capturedQuery = request.RequestUri!.Query;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new SignedUrlResponse
+                { Url = "https://signed.url" })
+            });
+        });
+
+        var client = new StorageApiClient(new HttpClient(handler)
+        { BaseAddress = new Uri(BaseAddress) });
+
+        var result = await client.GetSignedUrlAsync(storageKey, fileName);
+
+        Assert.NotNull(result);
+        Assert.Contains("fileName=my-renamed-file.pdf", capturedQuery);
+    }
+
+    [Fact]
     public async Task GetSignedUrlAsync_WhenResponseBodyIsEmpty_Throws()
     {
         var handler = new FakeHttpMessageHandler(_ => Task.FromResult(
@@ -132,6 +158,19 @@ public class StorageApiClientTests
             () => client.GetSignedUrlAsync("some-key"));
 
         Assert.Contains("empty signed url response", ex.Message);
+    }
+
+    [Fact]
+    public async Task GetSignedUrlAsync_WhenServerReturnsError_Throws()
+    {
+        var handler = new FakeHttpMessageHandler(_ => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.InternalServerError)));
+
+        var client = new StorageApiClient(new HttpClient(handler)
+        { BaseAddress = new Uri(BaseAddress) });
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => client.GetSignedUrlAsync("some-key"));
     }
 
     [Fact]
@@ -178,6 +217,29 @@ public class StorageApiClientTests
 
         // Assert: filename segment is encoded, slashes preserved
         Assert.Equal("/api/objects/uploads/2026/report%20final.pdf", capturedPath);
+    }
+
+    [Fact]
+    public async Task DeleteFileAsync_WhenStorageReturns404_ThrowsWithUsefulInformation()
+    {
+        var handler = new FakeHttpMessageHandler(request =>
+        {
+            Assert.Equal(HttpMethod.Delete, request.Method);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)
+            {
+                Content = new StringContent("Object not found")
+            });
+        });
+
+        var client = new StorageApiClient(new HttpClient(handler)
+        { BaseAddress = new Uri(BaseAddress) });
+
+        var ex = await Assert.ThrowsAsync<Exception>(
+            () => client.DeleteFileAsync("uploads/nonexistent.pdf"));
+
+        Assert.Contains("Failed to delete storage object", ex.Message);
+        Assert.Contains("NotFound", ex.Message);
+        Assert.Contains("Object not found", ex.Message);
     }
 
     [Fact]

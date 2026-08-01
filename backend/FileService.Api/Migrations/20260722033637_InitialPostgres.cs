@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace FileService.Api.Migrations
 {
-    /// <inheritdoc />
+    [ExcludeFromCodeCoverage]
     public partial class InitialPostgres : Migration
     {
         /// <inheritdoc />

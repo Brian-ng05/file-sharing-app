@@ -1,0 +1,49 @@
+Summary
+  Generated on: 8/1/2026 - 5:19:31 PM
+  Coverage date: 8/1/2026 - 5:19:22 PM - 8/1/2026 - 5:19:29 PM
+  Parser: MultiReport (3x Cobertura)
+  Assemblies: 3
+  Classes: 23
+  Files: 23
+  Line coverage: 98.4%
+  Covered lines: 704
+  Uncovered lines: 11
+  Coverable lines: 715
+  Total lines: 1210
+  Branch coverage: 99.1% (222 of 224)
+  Covered branches: 222
+  Total branches: 224
+  Method coverage: 100% (90 of 90)
+  Full method coverage: 93.3% (84 of 90)
+  Covered methods: 90
+  Fully covered methods: 84
+  Total methods: 90
+
+FileService.Api                                                98.1%
+  FileService.Api.Controllers.FilesController                  97.4%
+  FileService.Api.Data.ApplicationDbContext                     100%
+  FileService.Api.Dtos.ExpiredFileDto                           100%
+  FileService.Api.Dtos.FileMetadataResponse                     100%
+  FileService.Api.Dtos.SignedUrlResponse                        100%
+  FileService.Api.Dtos.UploadFileRequest.UploadFileRequest      100%
+  FileService.Api.Dtos.UploadFileResponse.UploadFileResponse    100%
+  FileService.Api.Dtos.VerifyPasswordRequest                    100%
+  FileService.Api.Entities.FileMetadata                         100%
+  FileService.Api.Repository.FileRepository                     100%
+  FileService.Api.Services.FileService                          100%
+  FileService.Api.Services.StorageApiClient                      94%
+  StorageService.Api.Dtos.UploadResponse                        100%
+
+MaintenanceService.Api                                         97.5%
+  MaintenanceService.Api.Clients.FileServiceClient               95%
+  MaintenanceService.Api.DTOs.ExpiredFileDto                    100%
+  MaintenanceService.Api.Services.CleanupService                100%
+
+StorageService.Api                                             99.4%
+  StorageService.Api.Controllers.StorageController              100%
+  StorageService.Api.DTOs.SignedUrlResponse                     100%
+  StorageService.Api.DTOs.UploadRequest                         100%
+  StorageService.Api.DTOs.UploadResponse                        100%
+  StorageService.Api.Models.AwsSettings                         100%
+  StorageService.Api.Services.S3StorageService                 99.1%
+  StorageService.Api.Services.StorageOperationException         100%

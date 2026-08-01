@@ -1,4 +1,5 @@
 
+using System.Diagnostics.CodeAnalysis;
 using FileService.Api.Data;
 using FileService.Api.Repository;
 using FileManagementService = FileService.Api.Services.FileService;   
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Configuration.Json;
 
 namespace FileService.Api
 {
+    [ExcludeFromCodeCoverage]
     public class Program
     {
         public static void Main(string[] args)
