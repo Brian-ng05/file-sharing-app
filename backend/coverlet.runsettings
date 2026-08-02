@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <!-- Exclude external NuGet packages -->
+          <Exclude>[Testcontainers*]*</Exclude>
+          <Exclude>[Docker*]*</Exclude>
+          <Exclude>[AWSSDK*]*</Exclude>
+          <Exclude>[xunit*]*</Exclude>
+          <Exclude>[Moq]*</Exclude>
+          <Exclude>[FluentAssertions*]*</Exclude>
+          <Exclude>[coverlet*]*</Exclude>
+          <Exclude>[Castle*]*</Exclude>
+          <Exclude>[BCrypt*]*</Exclude>
+          <Exclude>[AutoMapper*]*</Exclude>
+          <Exclude>[Npgsql*]*</Exclude>
+          <Exclude>[Swashbuckle*]*</Exclude>
+          <Exclude>[FluentValidation*]*</Exclude>
+          <Exclude>[Humanizer*]*</Exclude>
+          <Exclude>[YamlDotNet*]*</Exclude>
+          <Exclude>[JsonPointer*]*</Exclude>
+          <Exclude>[SharpCompress*]*</Exclude>
+
+          <!-- Exclude Microsoft & System framework assemblies -->
+          <Exclude>[Microsoft.*]*</Exclude>
+          <Exclude>[System*]*</Exclude>
+          <Exclude>[netstandard]*</Exclude>
+
+          <!-- Exclude source-generator generated files in obj/ -->
+          <ExcludeByFile>**/obj/**/*.cs</ExcludeByFile>
+
+          <!-- Exclude non-logic application files -->
+          <ExcludeByFile>**/Program.cs</ExcludeByFile>
+          <ExcludeByFile>**/Migrations/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/Dtos/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/DTOs/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/Entities/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/Models/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/Data/*Db.cs</ExcludeByFile>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

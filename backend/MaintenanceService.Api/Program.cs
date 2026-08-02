@@ -1,46 +1,54 @@
+using System.Diagnostics.CodeAnalysis;
 using MaintenanceService.Api.Clients;
 using MaintenanceService.Api.Services;
 
-var builder = Host.CreateApplicationBuilder(args);
-
-// HttpClient -> FileService
-builder.Services.AddHttpClient<IFileServiceClient, FileServiceClient>(
-    client =>
+[ExcludeFromCodeCoverage]
+public partial class Program
+{
+    public static async Task Main(string[] args)
     {
-        client.BaseAddress = new Uri(
-            builder.Configuration["Services:GatewayUrl"]!);
-    });
+        var builder = Host.CreateApplicationBuilder(args);
 
-// Services
-builder.Services.AddScoped<ICleanupService, CleanupService>();
+        // HttpClient -> FileService
+        builder.Services.AddHttpClient<IFileServiceClient, FileServiceClient>(
+            client =>
+            {
+                client.BaseAddress = new Uri(
+                    builder.Configuration["Services:GatewayUrl"]!);
+            });
 
-var host = builder.Build();
+        // Services
+        builder.Services.AddScoped<ICleanupService, CleanupService>();
 
-try
-{
-    using var scope = host.Services.CreateScope();
+        var host = builder.Build();
 
-    var cleanupService =
-        scope.ServiceProvider.GetRequiredService<ICleanupService>();
+        try
+        {
+            using var scope = host.Services.CreateScope();
 
-    var logger =
-        scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            var cleanupService =
+                scope.ServiceProvider.GetRequiredService<ICleanupService>();
 
-    logger.LogInformation("Starting cleanup job...");
+            var logger =
+                scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-    var deletedCount =
-        await cleanupService.CleanupExpiredFilesAsync();
+            logger.LogInformation("Starting cleanup job...");
 
-    logger.LogInformation(
-        "Cleanup completed successfully. Deleted {DeletedCount} expired file(s).",
-        deletedCount);
-}
-catch (Exception ex)
-{
-    var logger =
-        host.Services.GetRequiredService<ILogger<Program>>();
+            var deletedCount =
+                await cleanupService.CleanupExpiredFilesAsync();
 
-    logger.LogError(ex, "Cleanup job failed.");
+            logger.LogInformation(
+                "Cleanup completed successfully. Deleted {DeletedCount} expired file(s).",
+                deletedCount);
+        }
+        catch (Exception ex)
+        {
+            var logger =
+                host.Services.GetRequiredService<ILogger<Program>>();
 
-    Environment.ExitCode = 1;
+            logger.LogError(ex, "Cleanup job failed.");
+
+            Environment.ExitCode = 1;
+        }
+    }
 }
