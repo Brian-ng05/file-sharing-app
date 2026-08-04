@@ -22,6 +22,8 @@ public partial class Program
 
         var host = builder.Build();
 
+
+
         try
         {
             using var scope = host.Services.CreateScope();
